@@ -39,10 +39,11 @@ from solana_fuzzer import (
     ASSOCIATED_TOKEN_PROGRAM_ID, RENT_SYSVAR, CLOCK_SYSVAR,
     INSTRUCTIONS_SYSVAR, RECENT_BLOCKHASHES_SYSVAR, SLOT_HASHES_SYSVAR,
     STAKE_HISTORY_SYSVAR, EPOCH_SCHEDULE_SYSVAR, REWARDS_SYSVAR,
+    ED25519_PROGRAM_ID, SECP256K1_PROGRAM_ID, SECP256R1_PROGRAM_ID,
 )
 ```
 
-`SYSTEM_PROGRAM_ID == Pubkey(0)`. "Rent" is a **sysvar** (a read-only account), not a program — use `RENT_SYSVAR` as an account; compute rent-exemption with `svm.minimum_balance_for_rent_exemption(...)` (see [§5](05-svm-and-sysvars.md)).
+`SYSTEM_PROGRAM_ID == Pubkey(0)`. "Rent" is a **sysvar** (a read-only account), not a program — use `RENT_SYSVAR` as an account; compute rent-exemption with `svm.minimum_balance_for_rent_exemption(...)` (see [§5](05-svm-and-sysvars.md)). The three `*_PROGRAM_ID`s at the end are the signature-verification **precompiles** (always enabled) — build instructions for them with the `ed25519` / `secp256k1` / `secp256r1` modules ([§9](09-signing-and-precompiles.md)).
 
 ## Generated programs (`pytypes`)
 

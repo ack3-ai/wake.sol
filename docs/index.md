@@ -24,6 +24,7 @@ assert res.success
 - **[6 · Types & encoding](06-types-and-encoding.md)** — width aliases (`u64`, `.max`), `pubkey`, `Opt`/`BorshEnum`, `BorshStruct.encode()/.decode()`, `MetaLike`.
 - **[7 · Programs & addresses](07-programs-and-addresses.md)** — built-in builders (`svm.system`, `svm.token`), well-known address constants, and generated (`pytypes`) programs.
 - **[8 · Fuzzing](08-fuzzing.md)** — the stateful `FuzzTest` engine: `@flow` / `@invariant`, randomized sequences, reproducibility from the seed, and reading the flow-stats output.
+- **[9 · Signing & precompiles](09-signing-and-precompiles.md)** — detached signing (`account.sign`, `secp256k1`/`secp256r1` keys), the `SignedMessage` claim, and the ed25519/secp256k1/secp256r1 verify-instruction builders (with cross-instruction `Ref`s).
 
 ## Conventions used throughout
 

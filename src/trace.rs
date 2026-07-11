@@ -143,6 +143,19 @@ fn marker_verb(l: &str) -> Option<(&str, &str)> {
     }
 }
 
+/// The native signature-verification precompiles run in the runtime without the
+/// usual program-invocation logging, so their instructions occupy a tree node but
+/// emit no `Program <id> invoke/success` markers. `attach_logs` skips them when
+/// pairing log frames to nodes.
+fn is_precompile_pid(pid: &str) -> bool {
+    matches!(
+        pid,
+        "Ed25519SigVerify111111111111111111111111111"
+            | "KeccakSecp256k11111111111111111111111111111"
+            | "Secp256r1SigVerify1111111111111111111111111"
+    )
+}
+
 /// Attribute each raw log line to the call-tree node that emitted it.
 ///
 /// The runtime's log stream is a pre-order traversal of the same tree
@@ -216,6 +229,17 @@ fn attach_logs(tree: &mut [Traced], logs: &[String]) {
             Some((pid, "invoke")) => {
                 if !aligned {
                     continue;
+                }
+                // Precompiles (ed25519/secp256k1/secp256r1) occupy a top-level tree
+                // node but execute without emitting `Program … invoke/success`
+                // markers, so they never appear in the log stream. Skip past any
+                // such node at the pairing cursor to keep the positional pairing
+                // aligned — otherwise the next real instruction's `invoke` fails to
+                // match, attribution aborts, and a builtin `Custom(code)` behind a
+                // precompile loses its program (degrading to `UnknownError`). The
+                // skipped nodes legitimately carry no logs and stay `Unknown`.
+                while next < pids.len() && is_precompile_pid(&pids[next]) {
+                    next += 1;
                 }
                 if next >= pids.len() || pids[next].as_str() != pid {
                     aligned = false; // diverged from the structured tree — stop here

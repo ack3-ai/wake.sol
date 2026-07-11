@@ -44,6 +44,41 @@ fn draw_seed(py: Python<'_>) -> PyResult<[u8; 32]> {
     })
 }
 
+/// Resolve a mixed instruction list — plain `Instruction`s and precompile
+/// `verify(...)` results (`PrecompileInstruction`, whose offset instruction
+/// indices bind to final transaction position) — into concrete `Instruction`s,
+/// by delegating to `solana_fuzzer._precompiles.materialize`. A no-op for a list
+/// that is already all `Instruction`s.
+fn materialize_ixs(py: Python<'_>, ixs: Vec<Py<PyAny>>) -> PyResult<Vec<Py<PyInstruction>>> {
+    py.import("solana_fuzzer._precompiles")?
+        .call_method1("materialize", (ixs,))?
+        .extract()
+}
+
+/// Construct a Python `SignedMessage` claim (`solana_fuzzer._precompiles`) from
+/// raw components — the bridge from Rust-side signing to the Python claim object
+/// the precompile builders consume.
+pub(crate) fn build_signed_message(
+    py: Python<'_>,
+    curve: &str,
+    identity: &[u8],
+    signature: &[u8],
+    message: &[u8],
+    recovery_id: Option<u8>,
+) -> PyResult<Py<PyAny>> {
+    let cls = py
+        .import("solana_fuzzer._precompiles")?
+        .getattr("SignedMessage")?;
+    let obj = cls.call1((
+        curve,
+        PyBytes::new(py, identity),
+        PyBytes::new(py, signature),
+        PyBytes::new(py, message),
+        recovery_id,
+    ))?;
+    Ok(obj.unbind())
+}
+
 impl PyAccount {
     /// Build and sign a `VersionedTransaction` with `self` as fee payer — the
     /// shared core of `tx` and `simulate`. Required signers are inferred from
@@ -72,6 +107,7 @@ impl PyAccount {
             ));
         }
 
+        let t_compile = std::time::Instant::now();
         let sdk_ixs: Vec<_> = ixs.iter().map(|ix| ix.borrow(py).to_sdk()).collect();
 
         // Secrets explicitly supplied for this transaction, keyed by address.
@@ -109,6 +145,8 @@ impl PyAccount {
         // its key as fee payer -> explicit `signers=` -> the keystore of created
         // accounts. A slot with no known key raises when `sigverify` is on; when
         // it's off, the slot keeps its placeholder (all-zero) signature.
+        crate::perf::add_compile(t_compile.elapsed());
+        let t_sign = std::time::Instant::now();
         let n_sig = message.header().num_required_signatures as usize;
         let static_keys = message.static_account_keys();
         let message_data = message.serialize();
@@ -137,6 +175,7 @@ impl PyAccount {
                 }
             }
         }
+        crate::perf::add_sign(t_sign.elapsed());
 
         Ok(VersionedTransaction { signatures, message })
     }
@@ -317,6 +356,26 @@ impl PyAccount {
         self.keypair.is_some()
     }
 
+    /// Sign `message` with this account's ed25519 keypair, returning a
+    /// `SignedMessage` claim (`curve="ed25519"`, `identity` = this account's
+    /// pubkey) ready for `ed25519.verify(...)`. The raw 64-byte signature is
+    /// `.signature` / `bytes(...)`. Raises if the account has no keypair.
+    fn sign(&self, py: Python<'_>, message: &[u8]) -> PyResult<Py<PyAny>> {
+        let kp = self
+            .keypair
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("account has no keypair and cannot sign"))?;
+        let sig = kp.sign_message(message);
+        build_signed_message(
+            py,
+            "ed25519",
+            self.address.inner.as_array(),
+            sig.as_ref(),
+            message,
+            None,
+        )
+    }
+
     /// The 64-byte secret key; raises if the account has no keypair.
     #[getter]
     fn secret<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
@@ -417,20 +476,35 @@ impl PyAccount {
     fn tx(
         &self,
         py: Python<'_>,
-        ixs: Vec<Py<PyInstruction>>,
+        ixs: Vec<Py<PyAny>>,
         signers: Vec<Py<PyAccount>>,
         lookup_tables: Vec<Bound<'_, PyAny>>,
     ) -> PyResult<Py<PyTxResult>> {
+        let t_mat = std::time::Instant::now();
+        let ixs = materialize_ixs(py, ixs)?;
         let alts = to_addrs(&lookup_tables)?;
         let sigverify = self.svm.borrow(py).sigverify;
+        crate::perf::add_materialize(t_mat.elapsed());
+        // build_signed_tx records the compile + sign sub-phases internally.
         let vtx = self.build_signed_tx(py, &ixs, &signers, &alts, sigverify)?;
         let traced_message = vtx.message.clone();
         let res = {
             let mut svm = self.svm.borrow_mut(py);
+            let t_hydrate = std::time::Instant::now();
             svm.hydrate_for_message(&traced_message)?;
-            svm.inner.send_transaction(vtx)
+            crate::perf::add_hydrate(t_hydrate.elapsed());
+            let t_send = std::time::Instant::now();
+            let r = svm.inner.send_transaction(vtx);
+            crate::perf::add_send(t_send.elapsed());
+            r
         };
-        deliver(py, tx_result_from(res, Some(&traced_message)))
+        let t_resultbuild = std::time::Instant::now();
+        let result = tx_result_from(res, Some(&traced_message));
+        crate::perf::add_resultbuild(t_resultbuild.elapsed());
+        let t_deliver = std::time::Instant::now();
+        let out = deliver(py, result);
+        crate::perf::add_deliver(t_deliver.elapsed());
+        out
     }
 
     /// Build, sign, and **simulate** a transaction with `self` as fee payer —
@@ -448,10 +522,11 @@ impl PyAccount {
     fn simulate(
         &self,
         py: Python<'_>,
-        ixs: Vec<Py<PyInstruction>>,
+        ixs: Vec<Py<PyAny>>,
         signers: Vec<Py<PyAccount>>,
         lookup_tables: Vec<Bound<'_, PyAny>>,
     ) -> PyResult<Py<PyTxResult>> {
+        let ixs = materialize_ixs(py, ixs)?;
         let alts = to_addrs(&lookup_tables)?;
         let sigverify = self.svm.borrow(py).sigverify;
         let vtx = self.build_signed_tx(py, &ixs, &signers, &alts, sigverify)?;

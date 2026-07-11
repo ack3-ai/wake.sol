@@ -25,6 +25,8 @@ mod account;
 mod alt;
 mod fork;
 mod instruction;
+mod perf;
+mod signing;
 mod sysvars;
 mod trace;
 
@@ -441,8 +443,17 @@ fn base_svm(sigverify: bool, blockhash_check: bool, transaction_history: bool) -
 /// state** (rebuilds the runtime + recompiles deployed programs under the new
 /// set). Only needed when deltas move the set off the mainnet default — so the
 /// common path never pays this recompile.
+///
+/// `with_precompiles()` is re-run so precompile registration tracks the feature
+/// set on every rebuild (e.g. activating `enable_secp256r1_precompile` mid-life
+/// registers secp256r1). It only *adds* accounts, so a precompile whose feature
+/// was deactivated keeps its (now inert) account — an accepted edge; the
+/// verifier keys off the live feature set regardless.
 fn apply_feature_set(svm: InnerLiteSVM, feature_set: FeatureSet) -> InnerLiteSVM {
-    let mut svm = svm.with_feature_set(feature_set).with_builtins();
+    let mut svm = svm
+        .with_feature_set(feature_set)
+        .with_builtins()
+        .with_precompiles();
     let _ = svm.rebuild_caches();
     svm
 }
@@ -1275,5 +1286,7 @@ fn _native(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(instruction::readonly, m)?)?;
     m.add_function(wrap_pyfunction!(instruction::writable_signer, m)?)?;
     m.add_function(wrap_pyfunction!(py_default_svm, m)?)?;
+    signing::register(m)?;
+    perf::register(m)?;
     Ok(())
 }

@@ -9,6 +9,7 @@ from typing_extensions import TypeVar, deprecated
 
 from solana_fuzzer._codec import u64
 from solana_fuzzer._errors import TransactionFailed
+from solana_fuzzer._precompiles import PrecompileInstruction, SignedMessage
 
 #: The decoded-return-value type carried by `Instruction` / `TransactionResult`.
 #: Covariant (so `Instruction[u64]` is-an `Instruction[object]` — required for the
@@ -997,6 +998,13 @@ class Account:
         """The 64-byte secret key; raises if the account has no keypair."""
         ...
 
+    def sign(self, message: bytes) -> SignedMessage:
+        """Sign `message` with this account's ed25519 keypair, returning a
+        `SignedMessage` claim (`curve="ed25519"`, `identity` = this account's
+        pubkey) for `ed25519.verify(...)`. The raw 64-byte signature is
+        `.signature` / `bytes(...)`. Raises if the account has no keypair."""
+        ...
+
     @property
     def exists(self) -> bool:
         """Whether an account currently exists at this address in the SVM."""
@@ -1042,7 +1050,7 @@ class Account:
     @overload
     def tx(
         self,
-        *ixs: Instruction,
+        *ixs: Instruction | PrecompileInstruction,
         signers: Sequence[Account] = ...,
         lookup_tables: Sequence[AddressLike] = ...,
     ) -> TransactionResult[object]:
@@ -1096,7 +1104,7 @@ class Account:
     @overload
     def simulate(
         self,
-        *ixs: Instruction,
+        *ixs: Instruction | PrecompileInstruction,
         signers: Sequence[Account] = ...,
         lookup_tables: Sequence[AddressLike] = ...,
     ) -> TransactionResult[object]:
@@ -1136,4 +1144,32 @@ class Account:
 def default_svm() -> LiteSVM:
     """Return the process-global default SVM, created once on first access
     (with sigverify and blockhash checks on)."""
+    ...
+
+# --- precompile signing primitives (used by the ed25519/secp256k1/secp256r1
+# modules; keys are derived deterministically from a 32-byte seed) ------------ #
+def secp256k1_secret_from_seed(seed: bytes) -> bytes:
+    """Derive a valid 32-byte secp256k1 secret scalar from a 32-byte seed."""
+    ...
+
+def secp256k1_eth_address(secret: bytes) -> bytes:
+    """The 20-byte Ethereum address for a 32-byte secp256k1 secret."""
+    ...
+
+def secp256k1_sign(secret: bytes, message: bytes) -> tuple[bytes, int]:
+    """Ethereum-style sign (keccak256 + recoverable ECDSA); returns
+    `(signature[64], recovery_id)`."""
+    ...
+
+def secp256r1_secret_from_seed(seed: bytes) -> bytes:
+    """Derive a valid 32-byte secp256r1 secret scalar from a 32-byte seed."""
+    ...
+
+def secp256r1_public_key(secret: bytes) -> bytes:
+    """The 33-byte compressed public key for a 32-byte secp256r1 secret."""
+    ...
+
+def secp256r1_sign(secret: bytes, message: bytes) -> bytes:
+    """ECDSA/P-256 sign over SHA-256, low-S normalized; returns a 64-byte
+    compact signature."""
     ...

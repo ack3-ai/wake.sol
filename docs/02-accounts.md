@@ -35,6 +35,8 @@ acc.secret        # bytes — 64-byte secret (raises if no keypair)
 acc.svm           # the LiteSVM this handle is bound to
 ```
 
+`acc.sign(message)` produces a detached ed25519 signature over arbitrary bytes as a `SignedMessage` (raises if the account can't sign) — for the signature-verification precompiles and off-chain signature checks; see [§9](09-signing-and-precompiles.md).
+
 > `lamports` is typed `u64`, so it flows straight into builder args / struct fields of that width without a type-checker complaint. See [§6](06-types-and-encoding.md).
 
 ## Funding & seeding accounts

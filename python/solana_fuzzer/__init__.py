@@ -39,6 +39,10 @@ from . import _addresses as _addresses  # noqa: F401
 from ._addresses import *  # noqa: F401,F403  (SYSTEM_PROGRAM_ID, TOKEN_PROGRAM_ID, RENT_SYSVAR, …)
 from . import _labels as _labels  # noqa: F401  (label store; Account.label delegates here)
 from . import _programs as _programs  # noqa: F401  (registers built-in decoders)
+from . import ed25519 as ed25519  # noqa: F401  (precompile module; registers decoder)
+from . import secp256k1 as secp256k1  # noqa: F401  (precompile module; registers decoder)
+from . import secp256r1 as secp256r1  # noqa: F401  (precompile module; registers decoder)
+from ._precompiles import Inline, Offsets, PrecompileInstruction, Ref, SignedMessage
 from . import call_trace as _call_trace  # noqa: F401  (renderer used by CallTrace.__rich__)
 from ._interface import DecodedInstruction, ReturnDataError, decode_instruction
 from .fuzzing import FuzzTest, flow, invariant
@@ -77,6 +81,14 @@ __all__ = [
     "FuzzTest",
     "Instruction",
     "LiteSVM",
+    "Inline",
+    "Offsets",
+    "PrecompileInstruction",
+    "Ref",
+    "SignedMessage",
+    "ed25519",
+    "secp256k1",
+    "secp256r1",
     "ProgramError",
     "Pubkey",
     "Rent",

@@ -8,7 +8,7 @@ name = "solana_fuzzer"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-litesvm = { version = "0.12.0", features = ["persistence-internal"] }
+litesvm = { version = "0.12.0", features = ["persistence-internal", "precompiles"] }
 # Mainnet-parity feature set + per-feature activate/deactivate. Pinned to the
 # version litesvm 0.12 resolves so the `FeatureSet` type unifies.
 # NOTE: `persistence-internal` is a litesvm *internal* feature (no stability
@@ -46,6 +46,12 @@ bincode = "1.3"
 ureq = { version = "2", features = ["tls"] }
 serde_json = "1"
 base64 = "0.22"
+
+# Pure-Rust signing for the secp256k1 / secp256r1 precompiles (no openssl):
+# k256/p256 for ECDSA, sha3 for the Ethereum keccak. See src/signing.rs.
+k256 = "0.13"
+p256 = "0.13"
+sha3 = "0.10"
 
 [dependencies.pyo3]
 version = "0.28"
