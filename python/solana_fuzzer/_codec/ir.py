@@ -501,3 +501,14 @@ def compile_field(ann, where="<field>"):
         return compile_type(ann)
 
     raise GenError(f"{where}: unsupported annotation {ann!r}")
+
+
+def compile_layout(*anns):
+    """Lower an instruction's positional arg annotations into a tuple of IR
+    nodes, once. The encode-side mirror of the decode layout compiled at
+    registration (``build_interface_from_module``): generated builders hold the
+    returned tuple at module scope and feed it to ``encode_ix_layout`` on every
+    call, so each annotation is lowered once per instruction instead of once per
+    encode. Goes through ``compile_field`` (hence ``_TYPE_CACHE``), so defined
+    types share the exact node the decode side uses."""
+    return tuple(compile_field(a, "<ix-arg>") for a in anns)

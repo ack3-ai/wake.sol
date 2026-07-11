@@ -21,7 +21,8 @@ from solana_fuzzer._codec import (
     as_meta,
     build_interface_from_module,
     build_metas,
-    encode_ix,
+    compile_layout,
+    encode_ix_layout,
     f64,
     i32,
     i64,
@@ -140,6 +141,12 @@ DISC_SWAP = b"\x01\x02\x03\x04\x05\x06\x07\x08"
 DISC_STORE = b"\x11\x12\x13\x14\x15\x16\x17\x18"
 DISC_NOOP = b"\x21\x22\x23\x24\x25\x26\x27\x28"
 
+# Encode layouts — compiled once at import (the encode-side mirror of the decode
+# layout built at registration); the builder methods feed them to
+# `encode_ix_layout`, so no annotation is lowered on the encode hot path.
+_ENC_do_swap = compile_layout(u64, Side)
+_ENC_store = compile_layout(AllTypes)
+
 
 class Fixture:
     program_id = PROGRAM_ID
@@ -155,7 +162,7 @@ class Fixture:
     ))
     def do_swap(self, amount_in: u64, side: Side, *,
                 user, pool, referrer=None, remaining_accounts=()) -> Instruction:
-        data = encode_ix(DISC_SWAP, (amount_in, u64), (side, Side))
+        data = encode_ix_layout(DISC_SWAP, _ENC_do_swap, amount_in, side)
         metas = build_metas(
             PROGRAM_ID,
             slot(user, True, True, False),
@@ -171,7 +178,7 @@ class Fixture:
         accounts=(AccountSlot("account", is_writable=True),),
     ))
     def store(self, cfg: AllTypes, *, account, remaining_accounts=()) -> Instruction:
-        data = encode_ix(DISC_STORE, (cfg, AllTypes))
+        data = encode_ix_layout(DISC_STORE, _ENC_store, cfg)
         metas = build_metas(PROGRAM_ID, slot(account, False, True, False))
         metas += [as_meta(m) for m in remaining_accounts]
         return Instruction(PROGRAM_ID, metas, data)
@@ -182,7 +189,7 @@ class Fixture:
         accounts=(AccountSlot("account"),),
     ))
     def noop(self, *, account, remaining_accounts=()) -> Instruction:
-        data = encode_ix(DISC_NOOP)
+        data = encode_ix_layout(DISC_NOOP, ())
         metas = build_metas(PROGRAM_ID, slot(account, False, False, False))
         metas += [as_meta(m) for m in remaining_accounts]
         return Instruction(PROGRAM_ID, metas, data)

@@ -100,6 +100,26 @@ def test_store_alltypes_roundtrip_via_dispatch():
     assert dec.args["cfg"] == v
 
 
+def test_encode_ix_backcompat_matches_layout():
+    # `encode_ix` (per-arg annotations) is retained for hand-written builders; it
+    # must keep producing the exact bytes of `encode_ix_layout` (precompiled
+    # layout, as generated code and the migrated fixture now use). Covers scalar,
+    # IntEnum, nested-struct, and zero-arg shapes.
+    from solana_fuzzer._codec import compile_layout, encode_ix, encode_ix_layout
+    cases = [
+        (fp.DISC_SWAP, [(7, u64), (fp.Side.Ask, fp.Side)]),
+        (fp.DISC_STORE, [(_sample_alltypes(), fp.AllTypes)]),
+        (fp.DISC_NOOP, []),
+    ]
+    for disc, args in cases:
+        layout = compile_layout(*[ann for _, ann in args])
+        values = [v for v, _ in args]
+        assert encode_ix(disc, *args) == encode_ix_layout(disc, layout, *values)
+    # arity mismatch between layout and values is caught loudly (codegen guard)
+    with pytest.raises(ValueError):
+        encode_ix_layout(fp.DISC_STORE, compile_layout(u64), 1, 2)
+
+
 # --------------------------------------------------------------------------- #
 # round-trip — direct codec over the type surface
 # --------------------------------------------------------------------------- #

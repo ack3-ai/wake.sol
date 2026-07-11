@@ -32,12 +32,12 @@ from .meta import (
 from .codec import MAX_DECODE_DEPTH, BorshError, Cursor, Mode, decode, encode
 
 # --- IR compiler ---
-from .ir import compile_field, compile_type, option_inner
+from .ir import compile_field, compile_layout, compile_type, option_inner
 
 # --- builder + introspection ---
 from .builder import (
     BorshStruct, MetaLike, as_meta, build_interface_from_module, build_metas,
-    encode_ix, make_borsh_decoder, mangle, mangle_back, slot,
+    encode_ix, encode_ix_layout, make_borsh_decoder, mangle, mangle_back, slot,
 )
 
 __all__ = [
@@ -54,9 +54,10 @@ __all__ = [
     # codec
     "BorshError", "Cursor", "Mode", "decode", "encode", "MAX_DECODE_DEPTH",
     # ir
-    "compile_type", "compile_field", "option_inner",
+    "compile_type", "compile_field", "compile_layout", "option_inner",
     # builder
-    "encode_ix", "build_metas", "slot", "as_meta", "make_borsh_decoder",
+    "encode_ix", "encode_ix_layout", "build_metas", "slot", "as_meta",
+    "make_borsh_decoder",
     "mangle", "mangle_back", "build_interface_from_module", "BorshStruct",
     "MetaLike",
 ]

@@ -28,7 +28,7 @@ _ENGINE_ORDER = [
     "Opt", "BorshEnumMeta", "BorshStruct", "variant",
     "AccountSlot", "BorshMeta", "InstructionMeta", "Kind", "MetaLike",
     "Serialization", "instruction", "build_interface_from_module",
-    "encode_ix", "build_metas", "slot", "as_meta",
+    "compile_layout", "encode_ix_layout", "build_metas", "slot", "as_meta",
 ]
 _TYPING_ORDER = ["Annotated", "Optional", "Sequence"]
 
@@ -67,6 +67,7 @@ class ModuleEmitter:
         self.source_locations = source_locations or {}
         self.usage = Usage()
         self.engine = set()             # extra _codec symbols (non-alias/carrier)
+        self.layouts = []               # [(const_name, [ann_str])] encode layouts
         self.need_dataclass = False
         self.need_intenum = False
         self.need_instruction_meta = False
@@ -126,13 +127,15 @@ class ModuleEmitter:
     def _emit_instruction(self, ix):
         self.need_instruction_meta = True
         self.engine.update({"AccountSlot", "InstructionMeta", "instruction",
-                            "encode_ix", "build_metas", "slot", "as_meta",
-                            "MetaLike"})
+                            "compile_layout", "encode_ix_layout", "build_metas",
+                            "slot", "as_meta", "MetaLike"})
         self.usage.typing.add("Sequence")
         disc = _bytes_literal(ix.discriminator)
 
-        # signature pieces
-        data_params, encode_args = [], []
+        # signature pieces. The arg annotations feed a module-level layout that
+        # is compiled once at import (see render()); the call site passes only
+        # the values, so nothing is lowered on the encode hot path.
+        data_params, value_names, layout_anns = [], [], []
         seen = {}
         for arg in ix.args:
             pname = mangle(arg.name)
@@ -142,7 +145,8 @@ class ModuleEmitter:
             seen[pname] = True
             ann = map_type(arg.type, self.usage)
             data_params.append(f"{pname}: {ann}")
-            encode_args.append(f"({pname}, {ann})")
+            value_names.append(pname)
+            layout_anns.append(ann)
 
         acct_params, slot_calls, slot_specs = [], [], []
         for a in ix.accounts:
@@ -199,10 +203,13 @@ class ModuleEmitter:
 
         # body
         body = []
-        if encode_args:
-            body.append(f"        data = encode_ix({disc}, {', '.join(encode_args)})")
+        if value_names:
+            layout_name = f"_ENC_{mangle(ix.name)}"
+            self.layouts.append((layout_name, layout_anns))
+            body.append(f"        data = encode_ix_layout({disc}, {layout_name}, "
+                        f"{', '.join(value_names)})")
         else:
-            body.append(f"        data = encode_ix({disc})")
+            body.append(f"        data = encode_ix_layout({disc}, ())")
         if slot_calls:
             inner = "\n".join(f"            {c}," for c in slot_calls)
             body.append(f"        metas = build_metas(\n            PROGRAM_ID,\n{inner}\n        )")
@@ -361,9 +368,17 @@ class ModuleEmitter:
             parts.append(_section("4. errors") + "\n"
                          + "\n\n\n".join(self._emit_errors(f"{cls_name}Error")))
 
-        cls_lines = [_section("5. instructions / builder"),
-                     f"class {cls_name}:",
-                     "    program_id = PROGRAM_ID"]
+        cls_lines = [_section("5. instructions / builder")]
+        if self.layouts:
+            # Encode layouts — compiled once at import (the encode-side mirror of
+            # the decode layout built at registration). Placed after the type
+            # sections so every referenced type is already defined; referenced by
+            # name from the builder methods below.
+            cls_lines.extend(f"{name} = compile_layout({', '.join(anns)})"
+                             for name, anns in self.layouts)
+            cls_lines.append("")
+        cls_lines += [f"class {cls_name}:",
+                      "    program_id = PROGRAM_ID"]
         if method_blocks:
             cls_body = "\n\n".join(method_blocks)
             cls_lines.append("")

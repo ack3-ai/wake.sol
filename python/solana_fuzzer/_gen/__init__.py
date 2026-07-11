@@ -5,7 +5,7 @@ like ``tests/fixture_program.py`` against the ``solana_fuzzer._codec`` engine.
 
 from __future__ import annotations
 
-GENERATOR_VERSION = "solana-fuzzer gen 0.1.0"
+GENERATOR_VERSION = "solana-fuzzer gen 0.2.0"
 SCHEMA_VERSION = "1.0.0"
 
 from .run import run_gen   # noqa: E402  (public entry point; imported lazily by cli)

@@ -114,6 +114,23 @@ def encode_ix(discriminator, *args):
     return bytes(out)
 
 
+def encode_ix_layout(discriminator, layout, *values):
+    """``discriminator`` + Borsh(``values``). ``layout`` is a tuple of
+    pre-compiled IR nodes (one per positional arg, built once at import via
+    :func:`~solana_fuzzer._codec.ir.compile_layout`), aligned with ``values`` in
+    IDL order. The encode twin of :func:`make_borsh_decoder`: annotations are
+    lowered once at registration and the nodes reused, so nothing is compiled on
+    the hot path. Emitted by ``solana-fuzzer gen``; hand-written builders can use
+    the self-contained :func:`encode_ix` instead."""
+    if len(values) != len(layout):
+        raise ValueError(f"encode_ix_layout: {len(layout)} layout node(s) but "
+                         f"{len(values)} value(s)")
+    out = bytearray(discriminator)
+    for node, value in zip(layout, values):
+        node.write(value, out, ())
+    return bytes(out)
+
+
 def as_meta(value):
     """Coerce an address-like into a read-only non-signer ``AccountMeta`` (used
     for ``remaining_accounts``); an existing ``AccountMeta`` passes through."""
