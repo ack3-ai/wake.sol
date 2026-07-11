@@ -528,6 +528,60 @@ def test_tx_allows_keyless_fee_payer_when_sigverify_off():
     assert res.success, res.error
 
 
+def test_tx_skips_signing_when_sigverify_and_history_off():
+    # Fast path: with sigverify off AND transaction_history off, tx signatures are
+    # cosmetic (never verified, never used as a dedup key), so the ed25519 work is
+    # skipped even for a keypair-holding fee payer. The tx still executes and
+    # commits; its signature is the all-zero placeholder.
+    svm.sigverify = False
+    svm.transaction_history = False
+    payer = Account.new()
+    svm.airdrop(payer, 1_000_000_000)
+    bob = Account.new()
+    assert payer.can_sign  # holds a key, yet signing is still skipped
+
+    res = payer.tx(svm.system.transfer(1_000_000, from_=payer, to=bob))
+    assert res.success, res.error
+    assert bob.lamports == 1_000_000
+    # The deterministic proof signing was skipped: a key-holding fee payer would
+    # otherwise return a real signature (see test_tx_signs_for_real_when_sigverify_on),
+    # but here the slot is left at the all-zero placeholder.
+    assert res.signature == bytes(64)
+
+
+def test_tx_still_signs_when_history_on_and_sigverify_off():
+    # Regression guard: with transaction_history ON, signatures are the dedup key
+    # even when sigverify is off, so real signing must be kept — otherwise every tx
+    # would carry the all-zero signature and the second would collide as
+    # AlreadyProcessed. Distinct txs must both execute and carry real signatures.
+    svm.sigverify = False
+    svm.transaction_history = True
+    payer = Account.new()
+    svm.airdrop(payer, 1_000_000_000)
+    carol = Account.new()
+    dave = Account.new()
+
+    res_a = payer.tx(svm.system.transfer(1_000_000, from_=payer, to=carol))
+    res_b = payer.tx(svm.system.transfer(2_000_000, from_=payer, to=dave))
+    assert res_a.success, res_a.error
+    assert res_b.success, res_b.error  # no false AlreadyProcessed
+    assert res_a.signature != bytes(64)  # real signature, not a placeholder
+    assert res_a.signature != res_b.signature
+
+
+def test_tx_signs_for_real_when_sigverify_on():
+    # With sigverify on (the default), a keypair-holding fee payer still produces a
+    # real, non-placeholder signature — the fast path must not touch this mode.
+    assert svm.sigverify is True
+    payer = Account.new()
+    svm.airdrop(payer, 1_000_000_000)
+    bob = Account.new()
+
+    res = payer.tx(svm.system.transfer(1_000_000, from_=payer, to=bob))
+    assert res.success, res.error
+    assert res.signature != bytes(64)
+
+
 def test_blockhash_check_setter():
     assert svm.blockhash_check is True
     alice = Account.new()

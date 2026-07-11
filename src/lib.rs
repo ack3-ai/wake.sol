@@ -463,7 +463,7 @@ pub(crate) struct PyLiteSVM {
     pub(crate) inner: InnerLiteSVM,
     pub(crate) sigverify: bool,
     blockhash_check: bool,
-    transaction_history: bool,
+    pub(crate) transaction_history: bool,
     fork: Option<fork::Fork>,
     /// The construction-time feature set when it differs from the mainnet
     /// default (i.e. constructed with `activate`/`deactivate`); `None` for the

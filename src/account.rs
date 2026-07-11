@@ -91,6 +91,12 @@ impl PyAccount {
     /// payer — is not an error: its slot gets a placeholder (all-zero) signature,
     /// which the runtime accepts since it isn't verifying signatures. This lets a
     /// transaction be sent "signed" by an account you don't have the key for.
+    ///
+    /// When `sigverify` **and** `transaction_history` are both off, the produced
+    /// signatures are cosmetic — never verified, and never used as the
+    /// `AlreadyProcessed` dedup key — so *every* slot (even keypair-holding ones)
+    /// keeps its placeholder and the ed25519 work is skipped entirely. See the
+    /// early return below.
     fn build_signed_tx(
         &self,
         py: Python<'_>,
@@ -98,6 +104,7 @@ impl PyAccount {
         signers: &[Py<PyAccount>],
         lookup_tables: &[Address],
         sigverify: bool,
+        transaction_history: bool,
     ) -> PyResult<VersionedTransaction> {
         // The fee payer must hold a key to sign — unless sigverify is off, in which
         // case its signature isn't checked and it gets a placeholder below.
@@ -148,6 +155,21 @@ impl PyAccount {
         crate::perf::add_compile(t_compile.elapsed());
         let t_sign = std::time::Instant::now();
         let n_sig = message.header().num_required_signatures as usize;
+
+        // Fast path: when signatures are neither verified (`sigverify` off) nor
+        // used as the `AlreadyProcessed` dedup key (`transaction_history` off),
+        // they're cosmetic. Leave every slot at its placeholder and skip the
+        // per-signer ed25519 work — plus the `message.serialize()` and keystore
+        // lock it needs — entirely. This is the hot path for the fuzz engine,
+        // which runs with both flags off.
+        if !sigverify && !transaction_history {
+            crate::perf::add_sign(t_sign.elapsed());
+            return Ok(VersionedTransaction {
+                signatures: vec![Signature::default(); n_sig],
+                message,
+            });
+        }
+
         let static_keys = message.static_account_keys();
         let message_data = message.serialize();
         let mut signatures = vec![Signature::default(); n_sig];
@@ -472,6 +494,11 @@ impl PyAccount {
     /// its signature slot is left as a placeholder and the runtime accepts it. So
     /// with `svm.sigverify = False` you can send a transaction as an account you
     /// hold no key for — useful for exercising a program's own signer checks.
+    ///
+    /// **When `sigverify` and `transaction_history` are both off** (the fuzz-engine
+    /// configuration), signatures are cosmetic — never verified, never used as the
+    /// `AlreadyProcessed` dedup key — so signing is skipped for *every* slot and the
+    /// returned `TxResult.signature` is the all-zero placeholder.
     #[pyo3(signature = (*ixs, signers = vec![], lookup_tables = vec![]))]
     fn tx(
         &self,
@@ -483,10 +510,14 @@ impl PyAccount {
         let t_mat = std::time::Instant::now();
         let ixs = materialize_ixs(py, ixs)?;
         let alts = to_addrs(&lookup_tables)?;
-        let sigverify = self.svm.borrow(py).sigverify;
+        let (sigverify, transaction_history) = {
+            let svm = self.svm.borrow(py);
+            (svm.sigverify, svm.transaction_history)
+        };
         crate::perf::add_materialize(t_mat.elapsed());
         // build_signed_tx records the compile + sign sub-phases internally.
-        let vtx = self.build_signed_tx(py, &ixs, &signers, &alts, sigverify)?;
+        let vtx =
+            self.build_signed_tx(py, &ixs, &signers, &alts, sigverify, transaction_history)?;
         let traced_message = vtx.message.clone();
         let res = {
             let mut svm = self.svm.borrow_mut(py);
@@ -528,8 +559,12 @@ impl PyAccount {
     ) -> PyResult<Py<PyTxResult>> {
         let ixs = materialize_ixs(py, ixs)?;
         let alts = to_addrs(&lookup_tables)?;
-        let sigverify = self.svm.borrow(py).sigverify;
-        let vtx = self.build_signed_tx(py, &ixs, &signers, &alts, sigverify)?;
+        let (sigverify, transaction_history) = {
+            let svm = self.svm.borrow(py);
+            (svm.sigverify, svm.transaction_history)
+        };
+        let vtx =
+            self.build_signed_tx(py, &ixs, &signers, &alts, sigverify, transaction_history)?;
         let msg = vtx.message.clone();
         let res = {
             let mut svm = self.svm.borrow_mut(py);

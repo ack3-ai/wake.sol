@@ -184,7 +184,12 @@ class TransactionResult(Generic[_R_co]):
 
     @property
     def signature(self) -> bytes | None:
-        """The transaction signature, or `None` (e.g. for simulations)."""
+        """The transaction signature, or `None` (e.g. for simulations).
+
+        When the sending SVM has both `sigverify` and `transaction_history` off,
+        signatures are cosmetic (never verified, never used as a dedup key) and are
+        left unsigned to save the ed25519 work, so this is the all-zero placeholder
+        rather than a real signature."""
         ...
 
     @property
@@ -671,7 +676,12 @@ class LiteSVM:
         signature (byte-identical txs execute again) and `get_transaction(sig)`
         returns nothing. Setting it toggles in place, preserving account state;
         re-enabling restores the default history window. The fuzz engine disables
-        it for a run so repeated identical actions aren't rejected."""
+        it for a run so repeated identical actions aren't rejected.
+
+        With this **and** `sigverify` both off, transaction signatures are neither
+        verified nor used as a dedup key, so `tx`/`simulate` skip ed25519 signing
+        entirely (a large win on the fuzz hot path) and leave every signature at
+        the all-zero placeholder — see `TransactionResult.signature`."""
         ...
 
     @transaction_history.setter
