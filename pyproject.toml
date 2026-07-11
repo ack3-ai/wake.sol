@@ -1,0 +1,30 @@
+[build-system]
+requires = ["maturin>=1.7,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "solana-fuzzer"
+version = "0.1.0"
+description = "Python testing/fuzzing harness for Solana programs on top of litesvm"
+requires-python = ">=3.9"
+dependencies = [
+    "click>=8.0",
+    "pytest>=7.0",
+    "rich>=13.0",
+    "ipdb>=0.13",
+]
+classifiers = [
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: Implementation :: CPython",
+]
+
+[project.scripts]
+solana-fuzzer = "solana_fuzzer.cli:main"
+
+[project.entry-points.pytest11]
+solana_fuzzer = "solana_fuzzer._pytest_plugin"
+
+[tool.maturin]
+features = ["pyo3/extension-module"]
+python-source = "python"
+module-name = "solana_fuzzer._native"

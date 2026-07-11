@@ -1,0 +1,148 @@
+{
+  "address": "4Q7CGJjsU5jR3PCVa7sXhCf3qccWq2Hmh1ekAEC8QhS2",
+  "metadata": {
+    "name": "fixture_program",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Hand-authored Anchor 0.31 IDL exercising the v1 gen surface"
+  },
+  "instructions": [
+    {
+      "name": "do_swap",
+      "discriminator": [1, 2, 3, 4, 5, 6, 7, 8],
+      "accounts": [
+        { "name": "user", "writable": true, "signer": true },
+        { "name": "pool", "writable": true },
+        { "name": "referrer", "optional": true }
+      ],
+      "args": [
+        { "name": "amount_in", "type": "u64" },
+        { "name": "side", "type": { "defined": { "name": "Side" } } }
+      ]
+    },
+    {
+      "name": "store",
+      "discriminator": [17, 18, 19, 20, 21, 22, 23, 24],
+      "accounts": [
+        { "name": "account", "writable": true }
+      ],
+      "args": [
+        { "name": "cfg", "type": { "defined": { "name": "AllTypes" } } }
+      ]
+    },
+    {
+      "name": "noop",
+      "discriminator": [33, 34, 35, 36, 37, 38, 39, 40],
+      "accounts": [
+        { "name": "account" }
+      ],
+      "args": []
+    },
+    {
+      "name": "init",
+      "discriminator": [41, 42, 43, 44, 45, 46, 47, 48],
+      "accounts": [
+        { "name": "payer", "writable": true, "signer": true },
+        { "name": "system_program", "address": "11111111111111111111111111111111" },
+        { "name": "token_program" }
+      ],
+      "args": []
+    }
+  ],
+  "accounts": [
+    {
+      "name": "Position",
+      "discriminator": [170, 192, 151, 44, 27, 63, 16, 82]
+    }
+  ],
+  "types": [
+    {
+      "name": "Side",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          { "name": "Bid" },
+          { "name": "Ask" }
+        ]
+      }
+    },
+    {
+      "name": "Action",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          { "name": "Noop" },
+          {
+            "name": "Move",
+            "fields": [
+              { "name": "x", "type": "i64" },
+              { "name": "y", "type": "i64" }
+            ]
+          },
+          { "name": "Label", "fields": ["string"] },
+          { "name": "Pair", "fields": ["u32", "pubkey"] }
+        ]
+      }
+    },
+    {
+      "name": "Inner",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          { "name": "a", "type": "u16" },
+          { "name": "b", "type": "bool" }
+        ]
+      }
+    },
+    {
+      "name": "Pixel",
+      "type": {
+        "kind": "struct",
+        "fields": ["u8", "u8"]
+      }
+    },
+    {
+      "name": "Empty",
+      "type": {
+        "kind": "struct",
+        "fields": []
+      }
+    },
+    {
+      "name": "AllTypes",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          { "name": "id", "type": "u64" },
+          { "name": "price", "type": "u128" },
+          { "name": "tick", "type": "i32" },
+          { "name": "ratio", "type": "f64" },
+          { "name": "is_bid", "type": "bool" },
+          { "name": "memo", "type": "string" },
+          { "name": "payload", "type": "bytes" },
+          { "name": "maker", "type": "pubkey" },
+          { "name": "referrer", "type": { "option": "pubkey" } },
+          { "name": "delegate", "type": { "option": "pubkey" } },
+          { "name": "tags", "type": { "vec": "u16" } },
+          { "name": "checksum", "type": { "array": ["u8", 32] } },
+          { "name": "samples", "type": { "array": ["i64", 4] } },
+          { "name": "expiry", "type": { "option": { "option": "u64" } } },
+          { "name": "side", "type": { "defined": { "name": "Side" } } },
+          { "name": "action", "type": { "defined": { "name": "Action" } } },
+          { "name": "inner", "type": { "defined": { "name": "Inner" } } }
+        ]
+      }
+    },
+    {
+      "name": "Position",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          { "name": "owner", "type": "pubkey" },
+          { "name": "amount", "type": "u64" },
+          { "name": "bump", "type": "u8" }
+        ]
+      }
+    }
+  ]
+}
