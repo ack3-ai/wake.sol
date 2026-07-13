@@ -9,8 +9,10 @@ The Borsh codec and its type vocabulary live in `solana_fuzzer._codec` and are r
 Numbers are typed with width aliases — never bare `int`/`float`, so the codec knows the byte width:
 
 ```python
-from solana_fuzzer import u8, u16, u32, u64, u128, u256, i8, i16, i32, i64, i128, f32, f64, pubkey
+from solana_fuzzer import u8, u16, u32, u64, u128, u256, i8, i16, i32, i64, i128, i256, f32, f64, char, pubkey
 ```
+
+(`u256` / `i256` are 256-bit; `char` is a 4-byte Unicode codepoint. These three are **engine extensions**, not emitted by Anchor IDLs — handy when hand-defining a non-Anchor layout.)
 
 Each is a real `int`/`float` subclass exposing bounds and metadata (à la wake's `uintN`):
 

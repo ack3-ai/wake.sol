@@ -24,7 +24,7 @@ print(res.call_trace)        # colored tree via Rich
 
 ## Rendering
 
-`CallTrace` is Rich-renderable: in a Rich context (`rich.print`, a notebook, the terminal) it shows the colored tree above; `str(call_trace)` / `print(...)` renders the same tree as plain text. The root line shows ✓/✗, total compute units, and — on failure — the structured error.
+`CallTrace` is Rich-renderable: in a Rich context (`rich.print`, a notebook, the terminal) it shows the colored tree above; `str(call_trace)` / `print(...)` renders the same tree as plain text. The root line shows ✓/✗, total compute units, and — on failure — the structured error. Per node, the tree also renders decoded **events** as `⚡ EventName(...)` lines and a program's **return value** as a `➞ <value>` line (see [§10](10-return-values-and-events.md)).
 
 ## Walking it programmatically
 
@@ -50,13 +50,22 @@ for top in ct.instructions:
 ### `TracedInstruction`
 
 ```python
-node.program_id     # Pubkey
-node.accounts       # list[AccountMeta] — resolved accounts, in instruction order
-node.data           # bytes — instruction data
-node.stack_height   # int — 1 = top-level, ≥2 = CPI depth
-node.logs           # list[str] — program logs this invocation emitted directly
-node.inner          # list[TracedInstruction] — child CPIs, in order
+node.program_id       # Pubkey
+node.accounts         # list[AccountMeta] — resolved accounts, in instruction order
+node.data             # bytes — instruction data
+node.stack_height     # int — 1 = top-level, ≥2 = CPI depth
+node.logs             # list[str] — program logs this invocation emitted directly
+node.inner            # list[TracedInstruction] — child CPIs, in order
+
+node.status           # "success" | "failed" | "unknown" (frame never closed)
+node.compute_units    # int | None — cumulative CU for this frame (incl. its CPIs)
+node.error            # str | None — the raw `failed: <msg>` text if this frame failed
+node.raw_return_value # bytes | None — this frame's return data (§10)
+node.events           # list — this frame's decoded events (§10)
+node.events_raw       # list[bytes] — raw event payloads (disc ‖ Borsh) for this frame
 ```
+
+`status` / `compute_units` / `error` are recovered best-effort from the log stream (the runtime's `invoke` / `consumed` / `success` / `failed` brackets); a value is `None` / `"unknown"` when the marker wasn't present (e.g. truncated logs).
 
 ## Per-node logs
 

@@ -183,7 +183,7 @@ Re-run with that seed (add the test's node id to run only it) to reproduce exact
 
 ## Notes & limits
 
-- **Failed transactions raise.** `tx()` raises `TransactionFailed` on error, so an unexpected failure propagates and is reported as a found bug. For a flow that *expects* a failure (negative testing), catch it locally with `may_revert` / `must_revert` (from `solana_fuzzer`).
+- **Failed transactions raise.** `tx()` raises `TransactionFailed` on error, so an unexpected failure propagates and is reported as a found bug. For a flow that *expects* a failure (negative testing), catch it locally with `may_revert` / `must_revert` (from `solana_fuzzer`) — see [§11](11-errors.md).
 - **The fuzzer is random, not coverage-guided.** Selection is weighted-random; there's no feedback loop steering it toward new code. Use `weight`, `precondition`, and the stats table to make sure the interesting flows actually run.
 - **Not (yet) here:** shrinking of a failing sequence, and multi-process parallelism. A failure is reproduced from its seed + flow trace, not minimized.
 

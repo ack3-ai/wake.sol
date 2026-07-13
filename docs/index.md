@@ -18,13 +18,17 @@ assert res.success
 
 - **[1 · Getting started](01-getting-started.md)** — install, the global `svm`, fund an account, send your first transaction, read the result.
 - **[2 · Accounts](02-accounts.md)** — the `Account` handle: existence vs. keypair, creating/viewing/deriving, reading state, funding, labels.
-- **[3 · Transactions](03-transactions.md)** — `account.tx(...)` / `account.simulate(...)`, the signing model (`signers=`), and the `TransactionResult`.
+- **[3 · Transactions](03-transactions.md)** — `account.tx(...)` / `account.simulate(...)`, the signing model (`signers=`), v0 transactions (`lookup_tables=`), and the `TransactionResult`.
 - **[4 · Call traces](04-call-traces.md)** — the decoded instruction tree, per-node program logs, errors, and Rich rendering.
-- **[5 · The SVM & sysvars](05-svm-and-sysvars.md)** — `LiteSVM` config, blockhash/slot control, rent, and typed sysvar get/set (clock time-travel, etc.).
+- **[5 · The SVM & sysvars](05-svm-and-sysvars.md)** — `LiteSVM` config, feature gates, blockhash/slot control, rent, and typed sysvar get/set (clock time-travel, etc.).
 - **[6 · Types & encoding](06-types-and-encoding.md)** — width aliases (`u64`, `.max`), `pubkey`, `Opt`/`BorshEnum`, `BorshStruct.encode()/.decode()`, `MetaLike`.
 - **[7 · Programs & addresses](07-programs-and-addresses.md)** — built-in builders (`svm.system`, `svm.token`), well-known address constants, and generated (`pytypes`) programs.
 - **[8 · Fuzzing](08-fuzzing.md)** — the stateful `FuzzTest` engine: `@flow` / `@invariant`, randomized sequences, reproducibility from the seed, and reading the flow-stats output.
 - **[9 · Signing & precompiles](09-signing-and-precompiles.md)** — detached signing (`account.sign`, `secp256k1`/`secp256r1` keys), the `SignedMessage` claim, and the ed25519/secp256k1/secp256r1 verify-instruction builders (with cross-instruction `Ref`s).
+- **[10 · Return values & events](10-return-values-and-events.md)** — decoded return data (`return_value`, `decode_return`) and events (`res.events`, the `⚡` assertion surface).
+- **[11 · Errors](11-errors.md)** — the raise-by-default contract, the typed `TransactionFailed` hierarchy, `must_revert` / `may_revert`, and registering custom program errors.
+- **[12 · Address Lookup Tables](12-lookup-tables.md)** — the `create_lookup_table` cheatcode, the official ALT-program builders, and v0 transactions via `lookup_tables=`.
+- **[13 · Mainnet forking](13-forking.md)** — `svm.fork(...)`, offline/cache replay, `exclude=` for auditing your own build, and pinning programs (`fork_programs` / `forked_accounts`).
 
 ## Conventions used throughout
 

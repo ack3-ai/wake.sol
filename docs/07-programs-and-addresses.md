@@ -66,7 +66,9 @@ Highlights of the generated surface:
 The generator itself (CLI options, discovery, determinism, provenance) is documented in the design spec: [../design/pytypes-generator-spec/](../design/pytypes-generator-spec/index.md) (esp. [§9 generation pipeline](../design/pytypes-generator-spec/09-generation-pipeline.md)). Quick start:
 
 ```bash
-solana-fuzzer gen --idls ./idls --out ./pytypes     # generate
-solana-fuzzer gen check                              # CI drift gate
-solana-fuzzer gen list                               # show discovered programs
+solana-fuzzer gen --target-idl ./idls --out ./pytypes   # generate builders for these programs
+solana-fuzzer gen check                                 # CI drift gate
+solana-fuzzer gen list                                  # show discovered programs
 ```
+
+**`--target-idl` vs `--idls`.** `--target-idl` (default `target/idl`) is the set of programs you want *builders and decoders generated for* — your own program(s), the audit target. `--idls` (default `idls`) is a **dependency**-IDL root used only to *resolve types* referenced by the targets; nothing is generated for dep-only programs. So point `--target-idl` at what you're testing. `--only <base58>` narrows generation to specific program addresses (repeatable). The other flags (`--check`, `--strict`, `--no-facts`, `--verify`, `--allow-unverified`, `-v`) are covered in the design spec.

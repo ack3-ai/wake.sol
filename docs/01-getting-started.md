@@ -51,14 +51,14 @@ print(res.call_trace)            # a decoded, colored call tree
 
 ## Reading the result
 
-`account.tx(...)` returns a [`TransactionResult`](03-transactions.md):
+A **successful** `account.tx(...)` returns a [`TransactionResult`](03-transactions.md); a **failed** one raises `TransactionFailed` instead (see [§11](11-errors.md)), so `res` below is always a success:
 
 ```python
-res.success                  # bool
-res.error                    # structured error string, or None
+res.success                  # bool (True here)
 res.logs                     # list[str] — raw program logs
-res.return_data              # bytes | None
 res.compute_units_consumed   # int
+res.return_value             # decoded return value, or None (§10)
+res.events                   # list — decoded events emitted (§10)
 res.call_trace               # CallTrace — the decoded instruction tree (§4)
 ```
 
@@ -77,5 +77,8 @@ assert sim.success
 
 - Model accounts and read on-chain state → [§2 Accounts](02-accounts.md)
 - Sign, send, simulate, and the `signers=` rule → [§3 Transactions](03-transactions.md)
-- Inspect CPIs, logs, and errors → [§4 Call traces](04-call-traces.md)
-- Control time/rent/blockhash → [§5 The SVM & sysvars](05-svm-and-sysvars.md)
+- Inspect CPIs and per-node logs → [§4 Call traces](04-call-traces.md)
+- Control time/rent/blockhash, feature gates → [§5 The SVM & sysvars](05-svm-and-sysvars.md)
+- Read return values and events → [§10 Return values & events](10-return-values-and-events.md)
+- Handle typed failures (`must_revert`, …) → [§11 Errors](11-errors.md)
+- Audit against real mainnet state → [§13 Mainnet forking](13-forking.md)

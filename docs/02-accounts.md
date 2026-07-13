@@ -21,6 +21,13 @@ pda2 = Account.create_program_address([b"seed", bytes([bump])], program_id)
 
 All of these bind to the global `svm` unless you pass `svm=other` (see [§5](05-svm-and-sysvars.md)). Keypairs created via `Account.new()`/`from_secret()` are remembered process-wide, so the harness can sign for them automatically later (see [§3](03-transactions.md)).
 
+When you only need the **address** (no SVM-bound handle), the same derivations exist on `Pubkey` and return a bare `Pubkey`:
+
+```python
+pda, bump = Pubkey.find_program_address([b"seed"], program_id)   # -> (Pubkey, int)
+pda2 = Pubkey.create_program_address([b"seed", bytes([bump])], program_id)  # -> Pubkey
+```
+
 ## Reading state
 
 Every read delegates to the bound SVM, so a handle is always current:

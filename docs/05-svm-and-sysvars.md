@@ -40,6 +40,38 @@ Two things to know when it's off:
 
 If you want per-signature uniqueness *without* the dedup papercut, keep history on and rotate the blockhash yourself with `svm.expire_blockhash()` before each send — the faithful analogue of resubmitting on-chain.
 
+## Feature gates
+
+The runtime starts from **mainnet-beta's feature set** (a pinned snapshot), so behavior matches mainnet out of the box. You can query and flip individual feature-gate pubkeys:
+
+```python
+from solana_fuzzer import LiteSVM, Pubkey
+
+PICO_INFLATION = Pubkey("4RWNif6C2WCNiKVW7otP4G7dkmkHGyKQWRpuZ1pxKU5m")
+
+svm.is_feature_active(PICO_INFLATION)   # True — active on mainnet
+```
+
+Set the feature set **at construction** with `activate=` / `deactivate=` (deltas applied on top of the mainnet baseline) — e.g. to test behavior *before* a feature activated, or a not-yet-live one:
+
+```python
+svm = LiteSVM(deactivate=[PICO_INFLATION], activate=[SOME_PENDING_FEATURE])
+```
+
+Or change it **on a live SVM** with the `activate_features` / `deactivate_features` cheatcodes — these rebuild the runtime under the new feature set (and recompile deployed programs) while **preserving account state**, mirroring a mainnet feature activation at an epoch boundary:
+
+```python
+svm.activate_features(SOME_PENDING_FEATURE)     # account balances etc. survive
+svm.deactivate_features(SOME_PENDING_FEATURE)
+```
+
+A common guard is to skip a test when a feature it depends on isn't active:
+
+```python
+if not svm.is_feature_active(FEATURE):
+    pytest.skip("requires FEATURE")
+```
+
 ## Accounts, programs, blockhash, slot
 
 ```python
@@ -52,9 +84,12 @@ svm.warp_to_slot(slot)                              # jump the clock to `slot`
 svm.add_program_from_file(program_id, "path/to.so") # deploy a BPF program
 svm.add_program(program_id, so_bytes)
 svm.send_transaction(tx_bytes); svm.simulate_transaction(tx_bytes)
+svm.reset()                                         # wipe all accounts back to genesis
 ```
 
 Built-in program builders live here too: `svm.system` and `svm.token` (see [§7](07-programs-and-addresses.md)).
+
+The SVM also hosts two larger features with their own pages: **Address Lookup Tables** (`svm.create_lookup_table`, `svm.address_lookup_table`) → [§12](12-lookup-tables.md), and **mainnet forking** (`svm.fork`, `svm.fork_programs`, …) → [§13](13-forking.md).
 
 ## Computing rent
 

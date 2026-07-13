@@ -10,25 +10,29 @@ res = alice.tx(ix)            # build → sign → send (commits state)
 sim = alice.simulate(ix)      # build → sign → run, but commit nothing
 ```
 
-Both take any number of instructions (executed in order) and return a [`TransactionResult`](#transactionresult):
+Both take any number of instructions (executed in order) and, **on success**, return a [`TransactionResult`](#transactionresult). A **failed** transaction raises `TransactionFailed` instead of returning — see [§11 Errors](11-errors.md):
 
 ```python
-def tx(self, *ixs: Instruction, signers: Sequence[Account] = ()) -> TransactionResult: ...
-def simulate(self, *ixs: Instruction, signers: Sequence[Account] = ()) -> TransactionResult: ...
+def tx(self, *ixs: Instruction,
+       signers: Sequence[Account] = (),
+       lookup_tables: Sequence[AddressLike] = ()) -> TransactionResult: ...
+def simulate(self, *ixs: Instruction,
+             signers: Sequence[Account] = (),
+             lookup_tables: Sequence[AddressLike] = ()) -> TransactionResult: ...
 ```
 
-`self` (the account you call it on) is the **fee payer** and must hold a keypair. The recent blockhash is taken from the bound SVM.
+`self` (the account you call it on) is the **fee payer** and must hold a keypair. The recent blockhash is taken from the bound SVM. Passing `lookup_tables=` builds a **v0** transaction that sources accounts from those Address Lookup Tables; omitting it builds a legacy transaction — see [§12](12-lookup-tables.md).
 
 ## `tx` vs `simulate`
 
 Identical build + sign path; only the final step differs:
 
-| | commits state? | `signature` | `logs` / `return_data` / `compute_units` / `call_trace` |
+| | commits state? | `signature` | `logs` / `return_value` / `events` / `compute_units` / `call_trace` |
 |---|---|---|---|
 | `tx` | yes | set | yes |
 | `simulate` | **no** | `None` | yes |
 
-Use `simulate` to inspect logs / compute units / return data, or to check whether something *would* succeed, without spending the transaction or mutating balances.
+Use `simulate` to inspect logs / compute units / return value / events, or to check whether something *would* succeed, without spending the transaction or mutating balances.
 
 ## The signing model (`signers=`)
 
@@ -64,14 +68,24 @@ svm.system.transfer(1, from_=writable_signer(alice), to=bob)   # explicit privil
 
 ## TransactionResult
 
+`tx` / `simulate` return a `TransactionResult` **only on success** (`res.success` is then always `True`). A failure raises `TransactionFailed`; you reach the failed receipt through the exception's `.tx` — see [§11 Errors](11-errors.md).
+
 ```python
-res.success                  # bool
-res.signature                # bytes | None  (None for simulate / failures)
-res.error                    # str | None    — structured TransactionError, one line
+res.success                  # bool (True for a returned result)
+res.signature                # bytes | None  (None for simulate; all-zero if signing was skipped)
 res.logs                     # list[str]     — raw program logs (tx-wide)
-res.return_data              # bytes | None
 res.compute_units_consumed   # int
 res.call_trace               # CallTrace     — decoded instruction tree (§4)
+
+res.return_value             # decoded return value (per IDL `returns`), or None    (§10)
+res.raw_return_value         # raw return-data bytes, or None                       (§10)
+res.return_program_id        # Pubkey that set the return data, or None             (§10)
+res.decode_return(u64)       # decode the return data against an explicit type      (§10)
+res.events                   # list — decoded events (emit! / emit_cpi!)            (§10)
+
+res.error                    # TransactionFailed | None — the exception, or None on success
 ```
 
-On failure, `res.error` is the structured error such as `InstructionError(0, ProgramFailedToComplete)` — the leading number is the **top-level instruction index**, not an error code (`Custom(1)` is the one case where the number *is* the program's error code). The human *reason* (a panic message, `Error: …`, `insufficient lamports …`) is attributed per-node in the call trace's logs — see [§4](04-call-traces.md).
+Return values and events have their own page — see [§10](10-return-values-and-events.md). Error handling (the typed hierarchy, `must_revert` / `may_revert`) is [§11](11-errors.md).
+
+> **A note on `signature`.** When the sending SVM has **both** `sigverify` and `transaction_history` off, signatures are cosmetic (never verified, never used as a dedup key), so `tx` skips ed25519 signing entirely and leaves the all-zero placeholder — `res.signature` is then the 64-byte all-zero placeholder rather than a real signature. See [§5](05-svm-and-sysvars.md).

@@ -91,6 +91,11 @@ payer.tx(prog_ix, ix)   # the precompile's message offset points into prog_ix's 
 A `Ref` whose bytes aren't found — or that names an instruction not in the
 transaction — is refused at build time (refuse, don't guess).
 
+The default placement — bytes stored inline in the precompile instruction — is the
+`Inline` marker (also importable from `solana_fuzzer`). You rarely write it, since
+it's the default for every component, but it's the explicit counterpart to `Ref`
+when repointing only *some* components: `sm.at(message=Ref(prog_ix), signature=Inline())`.
+
 > **secp256k1 resolves late.** Unlike ed25519/secp256r1, the secp256k1 precompile
 > has no "this instruction" sentinel, so even an inline entry must name its own
 > transaction position. `secp256k1.verify(...)` therefore returns a
