@@ -1251,6 +1251,16 @@ pub(crate) fn tx_result_from(
     }
 }
 
+// Fork-safety invariant (multiprocess runner, `solana-fuzzer test -P N`; see
+// design/multiprocess-runner.md §3 blocker 2): the server forks N worker
+// processes with this global SVM already live in memory. That is fine — account
+// state is per-fork and each worker calls `svm.reset()` before its first test —
+// but only because nothing in the Rust layer holds a background thread or lock
+// across the fork point. litesvm is single-threaded and `fork.rs` uses blocking
+// `ureq` (no tokio runtime). Keep it that way: any Rust dependency that spawns
+// its own threads (e.g. a rayon/tokio pool from an agave version bump) must be
+// initialized lazily *after* the fork, or the workers may deadlock on a lock
+// held by a thread that did not survive the fork.
 static DEFAULT_SVM: PyOnceLock<Py<PyLiteSVM>> = PyOnceLock::new();
 
 /// The process-global `LiteSVM`, created once in Rust on first access

@@ -213,7 +213,20 @@ impl SnapshotStore {
             }),
         };
         if let Ok(bytes) = serde_json::to_vec(&v) {
-            let _ = fs::write(self.path(addr), bytes);
+            // Atomic write: several forked workers (`solana-fuzzer test -P N`)
+            // can fetch and cache the same `<pubkey>.json` at once. Write a
+            // process-unique temp in the same dir, then rename over the final
+            // path — rename is atomic within a filesystem, so a concurrent
+            // reader sees either the old file or the complete new one, never a
+            // half-written one. Best-effort throughout, like the plain write.
+            let tmp = self.dir.join(format!(".{addr}.{}.tmp", std::process::id()));
+            if fs::write(&tmp, bytes).is_ok() {
+                if fs::rename(&tmp, self.path(addr)).is_err() {
+                    let _ = fs::remove_file(&tmp);
+                }
+            } else {
+                let _ = fs::remove_file(&tmp);
+            }
         }
     }
 }

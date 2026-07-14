@@ -20,7 +20,7 @@ own body.
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import Callable, DefaultDict, List, Optional
+from typing import Callable, DefaultDict, Dict, List, Optional
 
 
 def flow(
@@ -141,6 +141,11 @@ def _run(cls: type, sequences_count: int, flows_count: int, transaction_history:
     # `solana_fuzzer` package imports this module to re-export FuzzTest.
     import solana_fuzzer as sf
 
+    # Clear any prior failure context so a passing run — or a non-fuzz test that
+    # fails later in the same process — never inherits a stale one. The pytest
+    # plugin also clears it per test (belt and suspenders for non-pytest callers).
+    clear_last_fuzz_failure()
+
     if not issubclass(cls, FuzzTest):
         raise TypeError(f"{cls.__name__} must subclass FuzzTest")
 
@@ -223,23 +228,35 @@ def _run(cls: type, sequences_count: int, flows_count: int, transaction_history:
 
             instance.post_sequence()
         except Exception:
-            # Add fuzz context, then re-raise so the pytest plugin prints the
-            # `--seed` reproduce line and (with --attach) drops into ipdb.
+            # Record the failure context (read by the pytest plugin to write a
+            # crash-log JSON) and fold this run's partial stats into the session
+            # registry, then re-raise so the plugin prints the `--seed` reproduce
+            # line and (with --attach) drops into ipdb.
+            _set_last_fuzz_failure(
+                fuzz_class=cls.__name__,
+                sequence_num=instance._sequence_num,
+                flow_num=instance._flow_num,
+                failing=current,
+                trace=list(trace),
+            )
             sf.print(
                 f"\n[fuzz] {cls.__name__} failed in {current} "
                 f"at sequence {instance._sequence_num}, flow {instance._flow_num}"
             )
             sf.print(f"[fuzz] sequence flow trace: {' -> '.join(trace)}")
             _print_stats(sf, cls.__name__, sequences_count, flows_count, stats)
+            record_run_stats(cls.__name__, sequences_count, flows_count, stats)
             raise
 
     _print_stats(sf, cls.__name__, sequences_count, flows_count, stats)
+    record_run_stats(cls.__name__, sequences_count, flows_count, stats)
 
 
-def _print_stats(sf, name: str, sequences_count: int, flows_count: int, stats: dict) -> None:
-    """Render the per-flow diagnostics table + dead-flow warnings, on every run
-    (pass or fail). pytest captures stdout, so it surfaces on failure or under
-    ``-s`` / ``-v``.
+def build_stats_table(title: str, flows_stats: dict):
+    """Build the flow-stats rich ``Table`` + dead-flow warnings from a
+    ``{flow: {picked, ran, skipped, reasons}}`` mapping. Shared by the
+    single-process per-run table (:func:`_print_stats`) and the multiprocess
+    server's aggregated table, so both render identically.
 
     Columns: ``picked`` (chosen by the weighted draw), ``ran`` (executed and
     mutated state — counts toward ``max_times``), ``skipped`` (returned a ``str``
@@ -250,11 +267,7 @@ def _print_stats(sf, name: str, sequences_count: int, flows_count: int, stats: d
     """
     from rich.table import Table
 
-    table = Table(
-        title=f"{name} — flow stats ({sequences_count} sequences x {flows_count} flows)",
-        title_justify="left",
-        header_style="bold",
-    )
+    table = Table(title=title, title_justify="left", header_style="bold")
     table.add_column("flow")
     table.add_column("picked", justify="right")
     table.add_column("ran", justify="right")
@@ -262,8 +275,8 @@ def _print_stats(sf, name: str, sequences_count: int, flows_count: int, stats: d
     table.add_column("skip reasons")
 
     warnings: List[str] = []
-    for fname in sorted(stats):
-        s = stats[fname]
+    for fname in sorted(flows_stats):
+        s = flows_stats[fname]
         reasons = ", ".join(f"{r}:{c}" for r, c in sorted(s["reasons"].items()))
         table.add_row(fname, str(s["picked"]), str(s["ran"]), str(s["skipped"]), reasons)
         if s["picked"] == 0:
@@ -274,7 +287,105 @@ def _print_stats(sf, name: str, sequences_count: int, flows_count: int, stats: d
             warnings.append(
                 f"flow '{fname}' was picked {s['picked']}x but never ran (always soft-skipped)"
             )
+    return table, warnings
 
+
+def _print_stats(sf, name: str, sequences_count: int, flows_count: int, stats: dict) -> None:
+    """Render the per-flow diagnostics table + dead-flow warnings, on every run
+    (pass or fail). pytest captures stdout, so it surfaces on failure or under
+    ``-s`` / ``-v``. Single-process UX; unchanged by the session registry below.
+    """
+    title = f"{name} — flow stats ({sequences_count} sequences x {flows_count} flows)"
+    table, warnings = build_stats_table(title, stats)
     sf.print(table)
     for w in warnings:
         sf.print(f"[fuzz] ⚠ {w}")
+
+
+# --------------------------------------------------------------------------- #
+# Session-level bookkeeping for the multiprocess runner (``solana-fuzzer test
+# -P N``). Purely additive: it accumulates per-FuzzTest-class stats across every
+# ``_run`` in the session so a worker can ship its registry to the server, which
+# merges N registries and renders one aggregated table. Nothing here prints in
+# single-process — the per-run table above is the only single-process UX.
+# --------------------------------------------------------------------------- #
+
+#: ``{class_name: {"sequences": int, "steps": int,
+#:                 "flows": {flow_name: {"picked", "ran", "skipped",
+#:                                       "reasons": {reason: count}}}}}``.
+#: ``sequences``/``steps`` are the summed budget (sequences_count and
+#: sequences_count × flows_count) — enough to label the aggregate.
+_session_stats: Dict[str, dict] = {}
+
+#: The most recent FuzzTest failure's context, or ``None``. Set by ``_run``'s
+#: except block, cleared at the start of each ``_run`` and each test.
+_last_fuzz_failure: Optional[dict] = None
+
+
+def _merge_flow_leaves(dst: dict, src: dict) -> None:
+    """Sum ``src``'s per-flow leaves (picked/ran/skipped and each skip reason)
+    into ``dst`` in place. ``src`` may be a live ``_run`` stats dict (``reasons``
+    a defaultdict) or a registry entry's ``flows`` (``reasons`` a plain dict)."""
+    for fname, s in src.items():
+        leaf = dst.setdefault(
+            fname, {"picked": 0, "ran": 0, "skipped": 0, "reasons": {}}
+        )
+        leaf["picked"] += s.get("picked", 0)
+        leaf["ran"] += s.get("ran", 0)
+        leaf["skipped"] += s.get("skipped", 0)
+        for reason, count in s.get("reasons", {}).items():
+            leaf["reasons"][reason] = leaf["reasons"].get(reason, 0) + count
+
+
+def record_run_stats(name: str, sequences_count: int, flows_count: int, stats: dict) -> None:
+    """Fold one ``_run``'s per-flow stats into the session registry (both the
+    pass and fail paths). Additive across the whole session, so N duplicated
+    workers each contribute and the server merges them."""
+    entry = _session_stats.setdefault(name, {"sequences": 0, "steps": 0, "flows": {}})
+    entry["sequences"] += sequences_count
+    entry["steps"] += sequences_count * flows_count
+    _merge_flow_leaves(entry["flows"], stats)
+
+
+def get_session_stats() -> Dict[str, dict]:
+    """This process's accumulated fuzz-stats registry. A worker ships it to the
+    multiprocess server at session end (``fuzz_test_stats`` queue message)."""
+    return _session_stats
+
+
+def merge_session_stats(dst: Dict[str, dict], src: Dict[str, dict]) -> None:
+    """Merge one registry (e.g. a worker's) into ``dst`` in place, summing at the
+    leaves. The multiprocess server uses it to aggregate across workers."""
+    for name, entry in src.items():
+        d = dst.setdefault(name, {"sequences": 0, "steps": 0, "flows": {}})
+        d["sequences"] += entry.get("sequences", 0)
+        d["steps"] += entry.get("steps", 0)
+        _merge_flow_leaves(d["flows"], entry.get("flows", {}))
+
+
+def clear_last_fuzz_failure() -> None:
+    global _last_fuzz_failure
+    _last_fuzz_failure = None
+
+
+def _set_last_fuzz_failure(
+    *, fuzz_class: str, sequence_num: int, flow_num: int, failing: str, trace: List[str]
+) -> None:
+    global _last_fuzz_failure
+    _last_fuzz_failure = {
+        "fuzz_class": fuzz_class,
+        "sequence": sequence_num,
+        "flow": flow_num,
+        "failing": failing,
+        "trace": trace,
+    }
+
+
+def get_last_fuzz_failure() -> Optional[dict]:
+    """Context of the most recent FuzzTest failure — the class, the failing
+    sequence/flow index, the failing step (e.g. ``"flow increment"`` /
+    ``"invariant counter_matches_model"``), and the flow trace — or ``None``.
+    The pytest plugin reads this in ``pytest_exception_interact`` to write a
+    crash-log JSON. Minimal analogue of wake's ``get_executing_flow_num`` /
+    ``get_sequence_initial_internal_state`` seam."""
+    return _last_fuzz_failure

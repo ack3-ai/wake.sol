@@ -181,11 +181,32 @@ Reproduce: pytest --seed 3d4ad2957d262442
 
 Re-run with that seed (add the test's node id to run only it) to reproduce exactly. Run with `--attach` to drop into an ipdb post-mortem at the failing frame — it prints the full `pytest --seed <hex> "<nodeid>"` line for you.
 
+## Crash logs
+
+A `FuzzTest` failure also writes a JSON crash log under `.solana-fuzzer/logs/crashes/`, listed in the test summary as `Crash logs:`. It's a convenience artifact for reading, diffing, or archiving — reproduction is still just the seed. Each file records:
+
+```json
+{
+  "nodeid": "tests/test_fuzz_counter.py::test_fuzz_counter",
+  "seed": "3d4ad2957d262442",
+  "reproduce": "pytest --seed 3d4ad2957d262442 \"tests/test_fuzz_counter.py::test_fuzz_counter\"",
+  "fuzz_class": "CounterFuzz",
+  "sequence": 2,
+  "flow": 7,
+  "failing": "invariant counter_matches_model",
+  "trace": ["increment", "increment_batch", "..."],
+  "exception": {"type": "AssertionError", "value": "on-chain 8 != model 9"}
+}
+```
+
+The `reproduce` line is copy-paste ready. Only `FuzzTest` failures produce a crash log; ordinary test failures don't. Writing is best-effort — if the log can't be written it's skipped silently, never masking the real failure. Under `solana-fuzzer test -P N` each worker writes into its own `crashes/process-<N>/` directory and the server lists them all (see [§14 → Crash logs](14-parallel-running.md#crash-logs)).
+
 ## Notes & limits
 
 - **Failed transactions raise.** `tx()` raises `TransactionFailed` on error, so an unexpected failure propagates and is reported as a found bug. For a flow that *expects* a failure (negative testing), catch it locally with `may_revert` / `must_revert` (from `solana_fuzzer`) — see [§11](11-errors.md).
 - **The fuzzer is random, not coverage-guided.** Selection is weighted-random; there's no feedback loop steering it toward new code. Use `weight`, `precondition`, and the stats table to make sure the interesting flows actually run.
-- **Not (yet) here:** shrinking of a failing sequence, and multi-process parallelism. A failure is reproduced from its seed + flow trace, not minimized.
+- **Run many seeds at once.** `solana-fuzzer test -P N` launches N independent workers, each a full run with its own seed — the "N seeds overnight" use case. See [§14 Parallel running](14-parallel-running.md).
+- **Not (yet) here:** shrinking of a failing sequence. A failure is reproduced from its seed + flow trace, not minimized.
 
 ## Where to go next
 

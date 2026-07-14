@@ -23,6 +23,10 @@ venv/
 # Per-example fork caches (examples/*/*.py write here on live runs).
 **/.fork-cache/
 
+# Runtime artifacts: crash.txt (--attach post-mortem) and per-worker logs
+# (`solana-fuzzer test -P` writes .solana-fuzzer/logs/testing/process-N.ansi).
+/.solana-fuzzer/
+
 # Local Claude Code settings — personal machine paths / permissions, not shared.
 .claude/settings.local.json
 

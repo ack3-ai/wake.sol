@@ -29,6 +29,7 @@ assert res.success
 - **[11 · Errors](11-errors.md)** — the raise-by-default contract, the typed `TransactionFailed` hierarchy, `must_revert` / `may_revert`, and registering custom program errors.
 - **[12 · Address Lookup Tables](12-lookup-tables.md)** — the `create_lookup_table` cheatcode, the official ALT-program builders, and v0 transactions via `lookup_tables=`.
 - **[13 · Mainnet forking](13-forking.md)** — `svm.fork(...)`, offline/cache replay, `exclude=` for auditing your own build, and pinning programs (`fork_programs` / `forked_accounts`).
+- **[14 · Parallel running](14-parallel-running.md)** — `solana-fuzzer test -P N`: N workers of the same suite (N seeds) or sharded (`--dist uniform`), per-worker seeds & logs, and aggregated results.
 
 ## Conventions used throughout
 

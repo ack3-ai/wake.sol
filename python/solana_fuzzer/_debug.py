@@ -21,14 +21,15 @@ codegen, Rust-raised :class:`~solana_fuzzer._errors.TransactionFailed`):
   "<nodeid>"`` (this harness derives the per-test seed; there is no mutable
   global seed to inject as a pdb command the way wake does).
 
-Multiprocess note: this is single-process today, but the multiprocess runner is
-planned. The :func:`set_exception_handler` / :func:`get_exception_handler` /
-:func:`reset_exception_handled` seam mirrors wake's globals so that runner can
-install a worker→terminal routing handler here (e.g.
-``set_exception_handler(partial(attach_debugger, seed=...))``) without touching
-call sites. :func:`breakpoint_handler` is kept unwired for the same reason —
-the multiprocess runner will drive it via ``sys.breakpointhook``; in-process we
-deliberately do *not* claim ``PYTHONBREAKPOINT`` (it fights pytest's capture).
+Multiprocess note: the multiprocess runner (``solana-fuzzer test -P N``, see
+:mod:`solana_fuzzer._mp_worker`) wires the debugger across processes through the
+seam here. The :func:`set_exception_handler` / :func:`get_exception_handler` /
+:func:`reset_exception_handled` seam mirrors wake's globals so a worker can
+install a routing handler that hands the breakpoint to whichever process owns
+the terminal, without touching call sites. :func:`breakpoint_handler` stays
+unwired in-process (it fights pytest's capture); the runner instead drives
+``breakpoint()`` via ``sys.breakpointhook`` + :func:`make_custom_pdb`. In-process
+we deliberately do *not* claim ``PYTHONBREAKPOINT``.
 """
 
 from __future__ import annotations
@@ -147,6 +148,50 @@ def default_handler(self, line):
     except:  # noqa: E722  (mirrors wake: report anything, never leak out of the REPL)
         # Handle and report any exceptions
         self._error_exc()
+
+
+# --------------------------------------------------------------------------- #
+# breakpoint() debugger for the multiprocess runner (ports wake/testing/
+# custom_pdb.py). Built lazily so importing this module — which the always-on
+# pytest entry-point plugin pulls in — never eagerly imports IPython.
+# --------------------------------------------------------------------------- #
+
+
+def make_custom_pdb(cleanup: Callable[[], None]):
+    """Return a ``TerminalPdb`` instance whose exit commands run ``cleanup``.
+
+    The multiprocess worker installs this via ``sys.breakpointhook``: on
+    ``breakpoint()`` it negotiates an attach with the terminal-owning process
+    and, on accept, drops into this pdb positioned at the caller's frame.
+    ``cleanup`` is the worker's idempotent "re-redirect stdio and ack the
+    server" callback.
+
+    Unlike wake's ``custom_pdb.py`` (which overrides only ``continue``/``quit``,
+    so a ``Ctrl-D``/EOF exit leaves the server deadlocked waiting for the ack),
+    this overrides *every* session-ending command — continue, quit, EOF. The
+    worker additionally arms an ``atexit`` fallback, so the ack is guaranteed
+    even on an abnormal debugger exit (design doc §6, parity ledger D4).
+    """
+    from IPython.terminal.debugger import TerminalPdb
+
+    class CustomPdb(TerminalPdb):
+        def do_continue(self, arg):
+            cleanup()
+            return super().do_continue(arg)
+
+        do_c = do_cont = do_continue
+
+        def do_quit(self, arg):
+            cleanup()
+            return super().do_quit(arg)
+
+        do_q = do_exit = do_quit
+
+        def do_EOF(self, arg):
+            cleanup()
+            return super().do_EOF(arg)
+
+    return CustomPdb()
 
 
 # --------------------------------------------------------------------------- #

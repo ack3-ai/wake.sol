@@ -12,6 +12,7 @@ dependencies = [
     "pytest>=7.0",
     "rich>=13.0",
     "ipdb>=0.13",
+    "tblib>=3.0",  # pickle tracebacks across the multiprocess runner's queue
 ]
 classifiers = [
     "Programming Language :: Rust",
