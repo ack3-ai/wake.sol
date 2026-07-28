@@ -232,6 +232,12 @@ def _run(cls: type, sequences_count: int, flows_count: int, transaction_history:
             # crash-log JSON) and fold this run's partial stats into the session
             # registry, then re-raise so the plugin prints the `--seed` reproduce
             # line and (with --attach) drops into ipdb.
+            # Nothing is printed here. The failing step, the flow-stats table and
+            # the reproduce line are all rendered by the pytest plugin in its
+            # own `solana-fuzzer` report section, so they are not buried in
+            # pytest's "captured stdout" block. The full flow trace goes to the
+            # crash-log JSON only — at realistic `flows_count` it is thousands of
+            # entries and unreadable on a terminal.
             _set_last_fuzz_failure(
                 fuzz_class=cls.__name__,
                 sequence_num=instance._sequence_num,
@@ -239,24 +245,18 @@ def _run(cls: type, sequences_count: int, flows_count: int, transaction_history:
                 failing=current,
                 trace=list(trace),
             )
-            sf.print(
-                f"\n[fuzz] {cls.__name__} failed in {current} "
-                f"at sequence {instance._sequence_num}, flow {instance._flow_num}"
-            )
-            sf.print(f"[fuzz] sequence flow trace: {' -> '.join(trace)}")
-            _print_stats(sf, cls.__name__, sequences_count, flows_count, stats)
             record_run_stats(cls.__name__, sequences_count, flows_count, stats)
             raise
 
-    _print_stats(sf, cls.__name__, sequences_count, flows_count, stats)
     record_run_stats(cls.__name__, sequences_count, flows_count, stats)
 
 
-def build_stats_table(title: str, flows_stats: dict):
+def build_stats_table(title: Optional[str], flows_stats: dict):
     """Build the flow-stats rich ``Table`` + dead-flow warnings from a
     ``{flow: {picked, ran, skipped, reasons}}`` mapping. Shared by the
     single-process per-run table (:func:`_print_stats`) and the multiprocess
-    server's aggregated table, so both render identically.
+    server's aggregated table, so both render identically. ``title=None``
+    renders the table with no title line (the single-process caller does this).
 
     Columns: ``picked`` (chosen by the weighted draw), ``ran`` (executed and
     mutated state — counts toward ``max_times``), ``skipped`` (returned a ``str``
@@ -290,24 +290,17 @@ def build_stats_table(title: str, flows_stats: dict):
     return table, warnings
 
 
-def _print_stats(sf, name: str, sequences_count: int, flows_count: int, stats: dict) -> None:
-    """Render the per-flow diagnostics table + dead-flow warnings, on every run
-    (pass or fail). pytest captures stdout, so it surfaces on failure or under
-    ``-s`` / ``-v``. Single-process UX; unchanged by the session registry below.
-    """
-    title = f"{name} — flow stats ({sequences_count} sequences x {flows_count} flows)"
-    table, warnings = build_stats_table(title, stats)
-    sf.print(table)
-    for w in warnings:
-        sf.print(f"[fuzz] ⚠ {w}")
-
-
 # --------------------------------------------------------------------------- #
-# Session-level bookkeeping for the multiprocess runner (``solana-fuzzer test
-# -P N``). Purely additive: it accumulates per-FuzzTest-class stats across every
-# ``_run`` in the session so a worker can ship its registry to the server, which
-# merges N registries and renders one aggregated table. Nothing here prints in
-# single-process — the per-run table above is the only single-process UX.
+# Session-level bookkeeping. Accumulates per-FuzzTest-class stats across every
+# ``_run`` in the session. Two consumers:
+#
+# * single-process — the pytest plugin renders it in its ``solana-fuzzer``
+#   terminal-summary section (``_pytest_plugin.pytest_terminal_summary``);
+# * ``solana-fuzzer test -P N`` — each worker ships its registry to the server,
+#   which merges N registries and renders one aggregated table.
+#
+# ``_run`` itself prints nothing, so none of this lands in pytest's captured
+# stdout.
 # --------------------------------------------------------------------------- #
 
 #: ``{class_name: {"sequences": int, "steps": int,

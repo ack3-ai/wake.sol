@@ -156,10 +156,9 @@ pytest --seed <hex> "tests/test_fuzz_counter.py::test_fuzz_counter"
 
 ## Reading the output
 
-On success (visible under `-s`, or captured and shown on failure), each run prints a per-flow **stats table** and flags dead flows:
+Every run reports a per-flow **stats table** and flags dead flows, in the `solana-fuzzer` section of pytest's summary — so it is always visible, pass or fail, with no `-s` needed:
 
 ```
-CounterFuzz — flow stats (4 sequences x 15 flows)
 ┏━━━━━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━┳━━━━━━━━━┳━━━━━━━━━━━━━━┓
 ┃ flow            ┃ picked ┃ ran ┃ skipped ┃ skip reasons ┃
 ┡━━━━━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━╇━━━━━━━━━╇━━━━━━━━━━━━━━┩
@@ -171,15 +170,14 @@ CounterFuzz — flow stats (4 sequences x 15 flows)
 - **picked** — chosen by the weighted draw; **ran** — actually executed (counts toward `max_times`); **skipped** — returned a soft-skip `str`, with the reason breakdown.
 - A flow that was **never picked** (weight/precondition never let it run) or **picked but never ran** (always soft-skipped) is called out with `⚠` — the usual sign of a mis-set precondition or an always-bailing flow, i.e. a path you *think* you're covering but aren't.
 
-On failure, the engine adds context before re-raising, and the plugin prints the reproduce line:
+On failure, the engine adds context before re-raising, and the plugin names the failing step in the summary:
 
 ```
-[fuzz] CounterFuzz failed in invariant counter_matches_model at sequence 2, flow 7
-[fuzz] sequence flow trace: increment -> increment_batch -> increment -> ...
-Reproduce: pytest --seed 3d4ad2957d262442
+Failed: CounterFuzz in counter_matches_model at sequence 2, flow 7
+Base seed: 3d4ad2957d262442
 ```
 
-Re-run with that seed (add the test's node id to run only it) to reproduce exactly. Run with `--attach` to drop into an ipdb post-mortem at the failing frame — it prints the full `pytest --seed <hex> "<nodeid>"` line for you.
+Re-run with `pytest --seed <hex>` (add the test's node id to run only it) to reproduce exactly. Run with `--attach` to drop into an ipdb post-mortem at the failing frame — it prints the full `pytest --seed <hex> "<nodeid>"` line for you.
 
 ## Crash logs
 

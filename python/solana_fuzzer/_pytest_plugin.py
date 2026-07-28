@@ -10,6 +10,7 @@ regardless of run order or selection.
 from __future__ import annotations
 
 import hashlib
+import io
 import os
 from pathlib import Path
 from typing import Callable, List, Optional, Tuple
@@ -29,6 +30,12 @@ _crash_sink: Optional[Callable[[str, str], None]] = None
 #: ``(nodeid, relpath)`` for every crash log written this session; listed in the
 #: (single-process) terminal summary.
 _crash_logs: List[Tuple[str, str]] = []
+
+#: One entry per FuzzTest failure this session: the class, the failing step and
+#: the sequence/flow index. Captured in `_write_fuzz_crash_log` (which consumes
+#: the fuzzing module's single-slot failure context) so the terminal summary can
+#: report every failure, not just the last one.
+_fuzz_failures: List[dict] = []
 
 
 def set_crash_dir(path: Optional[Path]) -> None:
@@ -176,14 +183,56 @@ def pytest_exception_interact(node, call, report) -> None:
 def pytest_terminal_summary(terminalreporter, exitstatus, config: pytest.Config) -> None:
     base_seed = config.stash[_SEED_KEY]
     terminalreporter.section("solana-fuzzer")
+
+    # The flow-stats table(s) and the failing step used to be printed from inside
+    # `_run`, which put them in pytest's "captured stdout" block — visible only on
+    # failure or under `-s`, and mixed in with the program's own output. They are
+    # this plugin's diagnostics, so they belong in this section.
+    _write_flow_stats(terminalreporter)
+
+    for f in _fuzz_failures:
+        terminalreporter.write_line(
+            f"Failed: {f['fuzz_class']} in {f['failing']} "
+            f"at sequence {f['sequence']}, flow {f['flow']}"
+        )
+
     terminalreporter.write_line(f"Base seed: {base_seed.hex()}")
-    terminalreporter.write_line(f"Reproduce: pytest --seed {base_seed.hex()}")
     # Single-process crash logs land here; under -P the worker's summary goes to
     # its redirected log and the server lists them on the console instead.
     if _crash_logs:
         terminalreporter.write_line("Crash logs:")
         for nodeid, relpath in _crash_logs:
             terminalreporter.write_line(f"  {nodeid}: {relpath}")
+
+
+def _write_flow_stats(terminalreporter) -> None:
+    """Render one flow-stats table per FuzzTest class from the session registry.
+
+    Uses rich only to build the table (the same renderable the multiprocess
+    server aggregates), then hands the rendered lines to the terminal reporter so
+    pytest owns the output stream. A run with no FuzzTest in it prints nothing.
+    """
+    session_stats = fuzzing.get_session_stats()
+    if not session_stats:
+        return
+    for entry in session_stats.values():
+        table, warnings = fuzzing.build_stats_table(None, entry["flows"])
+        for line in _render_lines(table):
+            terminalreporter.write_line(line)
+        for w in warnings:
+            terminalreporter.write_line(f"⚠ {w}")
+
+
+def _render_lines(renderable) -> List[str]:
+    """Rich renderable -> list of plain lines, best effort."""
+    try:
+        from rich.console import Console
+
+        console = Console(file=io.StringIO(), width=100, no_color=False)
+        console.print(renderable)
+        return console.file.getvalue().rstrip("\n").split("\n")
+    except Exception:
+        return []
 
 
 def _sanitize(text: str, maxlen: int = 80) -> str:
@@ -207,6 +256,16 @@ def _write_fuzz_crash_log(node, call, base_seed: bytes) -> None:
         return
     # Consume it: exactly one crash log per failure, even if the hook fires again.
     fuzzing.clear_last_fuzz_failure()
+    # Keep a copy for the terminal summary — the single-slot context above is
+    # cleared here, and a session can have more than one fuzz failure.
+    _fuzz_failures.append(
+        {
+            "fuzz_class": ctx["fuzz_class"],
+            "failing": ctx["failing"],
+            "sequence": ctx["sequence"],
+            "flow": ctx["flow"],
+        }
+    )
 
     import json
     from datetime import datetime
