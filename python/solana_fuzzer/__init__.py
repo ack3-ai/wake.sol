@@ -2,6 +2,7 @@
 
 import random as _random
 
+from ordered_set import OrderedSet as OrderedSet
 from rich.console import Console as _Console
 
 # A markup-disabled Rich console, re-exported as `print` so tests can
@@ -83,6 +84,10 @@ __all__ = [
     "LiteSVM",
     "Inline",
     "Offsets",
+    # A plain `set` iterates in hash order and `Account` hashes differ every run,
+    # so iterating one in a flow or invariant breaks seed reproducibility. Use
+    # this instead — it is the reason it is exported from here.
+    "OrderedSet",
     "PrecompileInstruction",
     "Ref",
     "SignedMessage",

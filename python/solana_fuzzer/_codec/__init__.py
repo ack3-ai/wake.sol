@@ -36,8 +36,9 @@ from .ir import compile_field, compile_layout, compile_type, option_inner
 
 # --- builder + introspection ---
 from .builder import (
-    BorshStruct, MetaLike, as_meta, build_interface_from_module, build_metas,
-    encode_ix, encode_ix_layout, make_borsh_decoder, mangle, mangle_back, slot,
+    BorshStruct, BytesLike, MetaLike, as_meta, build_interface_from_module,
+    build_metas, encode_ix, encode_ix_layout, make_borsh_decoder, mangle,
+    mangle_back, slot,
 )
 
 __all__ = [
@@ -59,5 +60,5 @@ __all__ = [
     "encode_ix", "encode_ix_layout", "build_metas", "slot", "as_meta",
     "make_borsh_decoder",
     "mangle", "mangle_back", "build_interface_from_module", "BorshStruct",
-    "MetaLike",
+    "MetaLike", "BytesLike",
 ]

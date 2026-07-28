@@ -30,6 +30,11 @@ _RESERVED = {"self", "remaining_accounts"}
 #: registration; ``build_metas`` does the actual coercion via ``AccountMeta``.
 MetaLike = AccountMeta | Pubkey | Account | str | bytes | int
 
+#: What the decoders accept for raw bytes — anything ``bytes()`` can consume.
+#: ``Account.data`` hands back ``bytes``; ``bytearray`` / ``memoryview`` turn up
+#: when a caller slices a buffer instead of copying it.
+BytesLike = bytes | bytearray | memoryview
+
 
 # --------------------------------------------------------------------------- #
 # ergonomic, compilation-hidden encode/decode for generated dataclasses
@@ -67,7 +72,7 @@ class BorshStruct:
         return body
 
     @classmethod
-    def decode(cls: type[_S], data, with_discriminator: bool = True) -> _S:
+    def decode(cls: type[_S], data: BytesLike, with_discriminator: bool = True) -> _S:
         node = compile_type(cls)
         meta = getattr(cls, "__borsh_meta__", None)
         is_account = meta is not None and meta.is_account_root
@@ -178,7 +183,7 @@ def make_borsh_decoder(layout):
     names = [n for n, _ in layout]
     nodes = [nd for _, nd in layout]
 
-    def decode_args(data):
+    def decode_args(data: BytesLike):
         cur = Cursor(data)
         values = [node.read(cur, (name,)) for name, node in zip(names, nodes)]
         if cur.pos != len(data):                              # V-9 (IX_DATA)
@@ -195,7 +200,7 @@ def make_returns_decoder(node):
     semantics (exact length, full §5.11 validation) — so a wrong-type guess on
     the low-level path fails here rather than yielding a plausible-wrong value."""
 
-    def decode_return(data):
+    def decode_return(data: BytesLike):
         cur = Cursor(data)
         value = node.read(cur, ("<returns>",))
         if cur.pos != len(data):
