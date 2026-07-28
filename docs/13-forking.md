@@ -42,7 +42,7 @@ svm.add_program(MY_PROGRAM, my_patched_elf)   # deploy the build under audit ins
 # ...its real dependencies (pools, mints, config) hydrate on touch as usual
 ```
 
-See `examples/marinade_audit/` for the full composition against a live program (fork → pin → `gen` pytypes → decode real bytes → drive an instruction).
+The full composition against a live program is: fork → pin → `gen` pytypes → decode real bytes → drive an instruction.
 
 ## Pinning programs for offline replay: `fork_programs` / `forked_accounts`
 
