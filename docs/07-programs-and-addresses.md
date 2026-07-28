@@ -64,7 +64,7 @@ Highlights of the generated surface:
 - **Types** are `@dataclass`es subclassing `BorshStruct`, so `SomeAccount(...).encode()` / `SomeAccount.decode(bytes)` work for seeding/reading account state ([§2](02-accounts.md), [§6](06-types-and-encoding.md)).
 - Under pytest, a top-level `pytypes/` package is **auto-imported**, so generated programs are registered with no wiring.
 
-The generator itself (CLI options, discovery, determinism, provenance) is documented in the design spec: [../design/pytypes-generator-spec/](../design/pytypes-generator-spec/index.md) (esp. [§9 generation pipeline](../design/pytypes-generator-spec/09-generation-pipeline.md)). Quick start:
+The generator is deterministic and pins provenance for every emitted module (see the `__provenance__` block and `pytypes/_manifest.json`). Quick start:
 
 ```bash
 wake-sol gen --target-idl ./idls --out ./pytypes   # generate builders for these programs

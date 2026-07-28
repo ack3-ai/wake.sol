@@ -2,7 +2,7 @@
 
 A Python testing/fuzzing harness for Solana programs, backed by [litesvm](https://github.com/LiteSVM/litesvm) through a Rust/pyo3 extension. You drive a fast in-process SVM from Python: fund accounts, build & send (or simulate) transactions, and inspect a decoded call trace — with typed instruction builders generated from Anchor IDLs.
 
-This guide covers the **runtime harness API**. For the IDL → Python *generator* (`wake-sol gen`), see the design spec under [../design/pytypes-generator-spec/](../design/pytypes-generator-spec/index.md).
+This guide covers the **runtime harness API**; the IDL → Python generator is covered in [§7](07-programs-and-addresses.md).
 
 ```python
 from wake_sol import svm, Account

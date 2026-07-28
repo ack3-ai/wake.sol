@@ -65,5 +65,3 @@ svm.fork_programs(*(a.pubkey for a in svm.forked_accounts() if a.executable))
 - `unfork()` alone → **freezes** the current forked state (hydrate what you need online, then run RPC-free).
 - `unfork()` then `reset()` → a clean, unforked SVM.
 - `reset()` alone → keeps forking **on** (wipes accounts back to genesis, still hydrates).
-
-The full model — RPC/snapshot resolution, the negative cache, owner-blanking, phasing — is specified under [../design/forking-spec/](../design/forking-spec/index.md).
