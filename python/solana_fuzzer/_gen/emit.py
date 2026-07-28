@@ -187,7 +187,15 @@ class ModuleEmitter:
             returns_ann = map_type(ix.returns, self.usage)
             returns_line = f"        returns_type={returns_ann},\n"
             ret_hint = f"Instruction[{returns_ann}]"
-        deco = (f"    @instruction(InstructionMeta(\n"
+        # `@classmethod` wraps `@instruction(...)` (outermost), so the builder is
+        # callable as `Program.ix(...)` with no pointless instantiation. The
+        # introspection in build_interface_from_module() sees through the bound
+        # classmethod (`__pytypes_ix__` forwards via `__func__`) and
+        # inspect.signature already drops `cls`, so the derived decode layout is
+        # unchanged. Calling through an instance still works, so this is
+        # backwards compatible with `Program().ix(...)`.
+        deco = (f"    @classmethod\n"
+                f"    @instruction(InstructionMeta(\n"
                 f'        name="{ix.name}",\n'
                 f"        discriminator={disc},\n"
                 f"        {accounts_arg}\n"
@@ -196,7 +204,7 @@ class ModuleEmitter:
 
         # signature line(s)
         kw_params = acct_params + ["remaining_accounts: Sequence[MetaLike] = ()"]
-        head = f"    def {mangle(ix.name)}(self"
+        head = f"    def {mangle(ix.name)}(cls"
         if data_params:
             head += ", " + ", ".join(data_params)
         sig = f"{head}, *, {', '.join(kw_params)}) -> {ret_hint}:"

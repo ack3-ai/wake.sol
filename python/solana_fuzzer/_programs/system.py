@@ -85,15 +85,13 @@ class System:
 
     program_id = PROGRAM_ID
 
-    def __init__(self, svm=None):
-        self.svm = svm
-
+    @classmethod
     @instruction(InstructionMeta(
         name="transfer", discriminator=_tag(2), serialization=Serialization.BINCODE,
         accounts=(AccountSlot("from", is_signer=True, is_writable=True),
                   AccountSlot("to", is_writable=True)),
     ))
-    def transfer(self, lamports: u64, *, from_, to, remaining_accounts=()) -> Instruction:
+    def transfer(cls, lamports: u64, *, from_, to, remaining_accounts=()) -> Instruction:
         data = _tag(2) + struct.pack("<Q", lamports)
         metas = build_metas(PROGRAM_ID,
                             slot(from_, True, True, False),
@@ -101,12 +99,13 @@ class System:
         metas += [as_meta(m) for m in remaining_accounts]
         return Instruction(PROGRAM_ID, metas, data)
 
+    @classmethod
     @instruction(InstructionMeta(
         name="create_account", discriminator=_tag(0), serialization=Serialization.BINCODE,
         accounts=(AccountSlot("from", is_signer=True, is_writable=True),
                   AccountSlot("to", is_signer=True, is_writable=True)),
     ))
-    def create_account(self, lamports: u64, space: u64, owner: pubkey, *,
+    def create_account(cls, lamports: u64, space: u64, owner: pubkey, *,
                        from_, to, remaining_accounts=()) -> Instruction:
         data = _tag(0) + struct.pack("<QQ", lamports, space) + _pk(owner)
         metas = build_metas(PROGRAM_ID,
@@ -115,21 +114,23 @@ class System:
         metas += [as_meta(m) for m in remaining_accounts]
         return Instruction(PROGRAM_ID, metas, data)
 
+    @classmethod
     @instruction(InstructionMeta(
         name="assign", discriminator=_tag(1), serialization=Serialization.BINCODE,
         accounts=(AccountSlot("account", is_signer=True, is_writable=True),),
     ))
-    def assign(self, owner: pubkey, *, account, remaining_accounts=()) -> Instruction:
+    def assign(cls, owner: pubkey, *, account, remaining_accounts=()) -> Instruction:
         data = _tag(1) + _pk(owner)
         metas = build_metas(PROGRAM_ID, slot(account, True, True, False))
         metas += [as_meta(m) for m in remaining_accounts]
         return Instruction(PROGRAM_ID, metas, data)
 
+    @classmethod
     @instruction(InstructionMeta(
         name="allocate", discriminator=_tag(8), serialization=Serialization.BINCODE,
         accounts=(AccountSlot("account", is_signer=True, is_writable=True),),
     ))
-    def allocate(self, space: u64, *, account, remaining_accounts=()) -> Instruction:
+    def allocate(cls, space: u64, *, account, remaining_accounts=()) -> Instruction:
         data = _tag(8) + struct.pack("<Q", space)
         metas = build_metas(PROGRAM_ID, slot(account, True, True, False))
         metas += [as_meta(m) for m in remaining_accounts]

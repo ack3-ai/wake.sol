@@ -33,6 +33,7 @@ assert res.success
 
 ## Conventions used throughout
 
+- **Instruction builders are classmethods.** `Program.ix(...)` — no instantiation. A builder is a pure function of its arguments: it *builds* an `Instruction` and never reads chain state, so there is nothing for an instance to hold. State-dependent surfaces are the opposite and do hang off the SVM (`svm.clock`, `svm.set_rent(...)` — see [§5](05-svm-and-sysvars.md)), while sysvar and program *addresses* are plain module-level constants (see [§7](07-programs-and-addresses.md)).
 - **Instruction builders are data-first, accounts keyword-only.** Every builder method takes the instruction's data args positionally (in IDL order) and its accounts as keyword-only params: `ix(arg1, arg2, *, account_a, account_b=None, remaining_accounts=())`. This holds for the built-ins (`svm.system`, `svm.token`) and for every generated program.
 - **Addresses are `MetaLike`.** Anywhere an account is expected you can pass a `Pubkey`, an `Account`, an explicit `AccountMeta`, or a base58 `str` / 32 raw `bytes` / big-endian `int` — the builder coerces it (see [§6](06-types-and-encoding.md)).
 - **One import root.** Almost everything is re-exported from the top-level `solana_fuzzer` package, so `from solana_fuzzer import svm, Account, Pubkey, u64, RENT_SYSVAR, …` works.

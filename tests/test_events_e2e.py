@@ -78,7 +78,7 @@ def _run(emitter, x=7):
     ev_auth = Account.new(svm)
     svm.airdrop(ev_auth, 1_000_000)   # the self-CPI references it → must exist
     return payer.simulate(
-        emitter.Emitter().ping(x, event_authority=ev_auth, self_program=PROGRAM_ID))
+        emitter.Emitter.ping(x, event_authority=ev_auth, self_program=PROGRAM_ID))
 
 
 def test_both_events_decoded(emitter):

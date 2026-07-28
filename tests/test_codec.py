@@ -63,7 +63,7 @@ def _sample_alltypes(expiry=Opt(Opt(99)), referrer=Pubkey(11), delegate=None):
 # --------------------------------------------------------------------------- #
 def test_do_swap_roundtrip_via_dispatch():
     user, pool = Pubkey(1), Pubkey(2)
-    ix = fp.Fixture().do_swap(123_456_789, fp.Side.Ask, user=user, pool=pool)
+    ix = fp.Fixture.do_swap(123_456_789, fp.Side.Ask, user=user, pool=pool)
 
     dec = decode_instruction(fp.PROGRAM_ID, ix.data, len(ix.accounts))
     assert dec.program_name == "Fixture Program"
@@ -80,13 +80,13 @@ def test_do_swap_roundtrip_via_dispatch():
 
 
 def test_do_swap_optional_present_keeps_address():
-    ix = fp.Fixture().do_swap(1, fp.Side.Bid, user=Pubkey(1), pool=Pubkey(2),
+    ix = fp.Fixture.do_swap(1, fp.Side.Bid, user=Pubkey(1), pool=Pubkey(2),
                               referrer=Pubkey(3))
     assert ix.accounts[2].pubkey == Pubkey(3)
 
 
 def test_noop_zero_data_args():
-    ix = fp.Fixture().noop(account=Pubkey(1))
+    ix = fp.Fixture.noop(account=Pubkey(1))
     assert ix.data == fp.DISC_NOOP
     dec = decode_instruction(fp.PROGRAM_ID, ix.data, 1)
     assert dec.name == "noop" and dec.args == {} and dec.account_names == ["account"]
@@ -94,7 +94,7 @@ def test_noop_zero_data_args():
 
 def test_store_alltypes_roundtrip_via_dispatch():
     v = _sample_alltypes()
-    ix = fp.Fixture().store(v, account=Pubkey(1))
+    ix = fp.Fixture.store(v, account=Pubkey(1))
     dec = decode_instruction(fp.PROGRAM_ID, ix.data, len(ix.accounts))
     assert dec.name == "store"
     assert dec.args["cfg"] == v
@@ -326,4 +326,4 @@ def test_flag_override_warns():
     with warnings.catch_warnings():
         warnings.simplefilter("error", AccountFlagOverride)
         with pytest.raises(AccountFlagOverride):    # user slot is signer+writable
-            fp.Fixture().do_swap(1, fp.Side.Bid, user=ro, pool=Pubkey(2))
+            fp.Fixture.do_swap(1, fp.Side.Bid, user=ro, pool=Pubkey(2))

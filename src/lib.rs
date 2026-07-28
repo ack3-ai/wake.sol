@@ -533,20 +533,27 @@ impl PyLiteSVM {
 
     /// Builder namespace for System Program instructions (Python builder in
     /// `solana_fuzzer._programs.system`).
+    ///
+    /// Returns the `System` **class**, not an instance: its builders are
+    /// classmethods and pure functions of their arguments — they only *build* an
+    /// `Instruction`, never read chain state (sending is `account.tx(...)`, which
+    /// carries its own SVM binding). So there is nothing to bind here, and no
+    /// per-access instance to allocate. Sysvars are the opposite case and do hang
+    /// off the instance (`svm.clock`, `svm.rent`), because those read real state.
     #[getter]
     fn system(slf: Bound<'_, PyLiteSVM>) -> PyResult<Py<PyAny>> {
         let py = slf.py();
         let module = py.import("solana_fuzzer._programs.system")?;
-        Ok(module.getattr("System")?.call1((slf,))?.unbind())
+        Ok(module.getattr("System")?.unbind())
     }
 
     /// Builder namespace for SPL Token instructions (Python builder in
-    /// `solana_fuzzer._programs.token`).
+    /// `solana_fuzzer._programs.token`). Returns the class — see `system`.
     #[getter]
     fn token(slf: Bound<'_, PyLiteSVM>) -> PyResult<Py<PyAny>> {
         let py = slf.py();
         let module = py.import("solana_fuzzer._programs.token")?;
-        Ok(module.getattr("Token")?.call1((slf,))?.unbind())
+        Ok(module.getattr("Token")?.unbind())
     }
 
     /// Builder namespace for the official Address Lookup Table program

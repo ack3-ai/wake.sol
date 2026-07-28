@@ -52,12 +52,13 @@ For your own / dependency Anchor programs, `solana-fuzzer gen` reads the IDL JSO
 ```python
 from pytypes.my_program import MyProgram, PROGRAM_ID, SomeAccount
 
-ix = MyProgram().do_thing(amount, side, *, payer=alice, target=pda)
+ix = MyProgram.do_thing(amount, side, *, payer=alice, target=pda)
 alice.tx(ix)
 ```
 
 Highlights of the generated surface:
 
+- **Builders are classmethods** — call `MyProgram.do_thing(...)` directly; there is no instance state to construct. (`MyProgram().do_thing(...)` still works, but the `()` does nothing.)
 - **Builders** follow the data-first / accounts-keyword-only convention; account params are `MetaLike` ([§6](06-types-and-encoding.md)).
 - **Fixed-address accounts default automatically** — `system_program`, token programs, and sysvars are filled from the IDL's `address` (or a well-known name), so you usually don't pass them.
 - **Types** are `@dataclass`es subclassing `BorshStruct`, so `SomeAccount(...).encode()` / `SomeAccount.decode(bytes)` work for seeding/reading account state ([§2](02-accounts.md), [§6](06-types-and-encoding.md)).

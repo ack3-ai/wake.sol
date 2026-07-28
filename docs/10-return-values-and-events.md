@@ -9,7 +9,7 @@ Beyond logs and the call trace ([§4](04-call-traces.md)), a transaction carries
 A Solana program returns data by writing tx-wide return bytes (`set_return_data`); the value is last-writer-wins across the whole transaction. The harness decodes those bytes against the setting instruction's IDL `returns` type:
 
 ```python
-res = payer.simulate(adder.Adder().add(5, 37))   # add(a, b) -> u64  (IDL `returns: u64`)
+res = payer.simulate(adder.Adder.add(5, 37))   # add(a, b) -> u64  (IDL `returns: u64`)
 
 res.return_value       # 42            — decoded per the IDL `returns` type
 res.raw_return_value   # b'\x2a\x00\x00\x00\x00\x00\x00\x00'  — the raw bytes
@@ -62,7 +62,7 @@ Running **exactly one** instruction that declares a `returns` type through the s
 `res.events` is the flat, pre-order roll-up of **every** decoded event the transaction emitted (both `emit!` log events and `emit_cpi!` self-CPI events), across the whole call tree — the natural assertion surface:
 
 ```python
-res = payer.simulate(emitter.Emitter().ping(7, event_authority=ev_auth, self_program=PROGRAM_ID))
+res = payer.simulate(emitter.Emitter.ping(7, event_authority=ev_auth, self_program=PROGRAM_ID))
 
 # ping(7) emits {value: 7, doubled: 14} both ways (emit! + emit_cpi!)
 by_kind = {type(e).__name__: (e.value, e.doubled) for e in res.events}

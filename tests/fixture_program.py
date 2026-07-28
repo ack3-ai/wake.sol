@@ -151,6 +151,7 @@ _ENC_store = compile_layout(AllTypes)
 class Fixture:
     program_id = PROGRAM_ID
 
+    @classmethod
     @instruction(InstructionMeta(
         name="do_swap",
         discriminator=DISC_SWAP,
@@ -160,7 +161,7 @@ class Fixture:
             AccountSlot("referrer", is_optional=True),    # interior optional
         ),
     ))
-    def do_swap(self, amount_in: u64, side: Side, *,
+    def do_swap(cls, amount_in: u64, side: Side, *,
                 user, pool, referrer=None, remaining_accounts=()) -> Instruction:
         data = encode_ix_layout(DISC_SWAP, _ENC_do_swap, amount_in, side)
         metas = build_metas(
@@ -172,23 +173,25 @@ class Fixture:
         metas += [as_meta(m) for m in remaining_accounts]
         return Instruction(PROGRAM_ID, metas, data)
 
+    @classmethod
     @instruction(InstructionMeta(
         name="store",
         discriminator=DISC_STORE,
         accounts=(AccountSlot("account", is_writable=True),),
     ))
-    def store(self, cfg: AllTypes, *, account, remaining_accounts=()) -> Instruction:
+    def store(cls, cfg: AllTypes, *, account, remaining_accounts=()) -> Instruction:
         data = encode_ix_layout(DISC_STORE, _ENC_store, cfg)
         metas = build_metas(PROGRAM_ID, slot(account, False, True, False))
         metas += [as_meta(m) for m in remaining_accounts]
         return Instruction(PROGRAM_ID, metas, data)
 
+    @classmethod
     @instruction(InstructionMeta(
         name="noop",
         discriminator=DISC_NOOP,
         accounts=(AccountSlot("account"),),
     ))
-    def noop(self, *, account, remaining_accounts=()) -> Instruction:
+    def noop(cls, *, account, remaining_accounts=()) -> Instruction:
         data = encode_ix_layout(DISC_NOOP, ())
         metas = build_metas(PROGRAM_ID, slot(account, False, False, False))
         metas += [as_meta(m) for m in remaining_accounts]

@@ -76,161 +76,169 @@ class Token:
 
     program_id = Pubkey(TOKEN_PROGRAM)
 
-    def __init__(self, svm=None):
-        self.svm = svm
-
     # ---- instructions (registered) ----
+    @classmethod
     @instruction(InstructionMeta(
         name="initialize_mint2", discriminator=b"\x14", serialization=Serialization.PACK,
         accounts=(AccountSlot("mint", is_writable=True),),
     ))
-    def initialize_mint2(self, decimals: u8, mint_authority: pubkey,
+    def initialize_mint2(cls, decimals: u8, mint_authority: pubkey,
                          freeze_authority: Optional[pubkey] = None, *,
                          mint, remaining_accounts=()) -> Instruction:
         data = bytes([0x14, decimals]) + _pk(mint_authority)
         data += (b"\x01" + _pk(freeze_authority)) if freeze_authority is not None else b"\x00"
-        metas = build_metas(self.program_id, slot(mint, False, True, False))
+        metas = build_metas(cls.program_id, slot(mint, False, True, False))
         metas += [as_meta(m) for m in remaining_accounts]
-        return Instruction(self.program_id, metas, data)
+        return Instruction(cls.program_id, metas, data)
 
+    @classmethod
     @instruction(InstructionMeta(
         name="initialize_account3", discriminator=b"\x12", serialization=Serialization.PACK,
         accounts=(AccountSlot("account", is_writable=True), AccountSlot("mint")),
     ))
-    def initialize_account3(self, owner: pubkey, *, account, mint,
+    def initialize_account3(cls, owner: pubkey, *, account, mint,
                             remaining_accounts=()) -> Instruction:
         data = b"\x12" + _pk(owner)
-        metas = build_metas(self.program_id,
+        metas = build_metas(cls.program_id,
                             slot(account, False, True, False),
                             slot(mint, False, False, False))
         metas += [as_meta(m) for m in remaining_accounts]
-        return Instruction(self.program_id, metas, data)
+        return Instruction(cls.program_id, metas, data)
 
+    @classmethod
     @instruction(InstructionMeta(
         name="transfer_checked", discriminator=b"\x0c", serialization=Serialization.PACK,
         accounts=(AccountSlot("source", is_writable=True), AccountSlot("mint"),
                   AccountSlot("destination", is_writable=True),
                   AccountSlot("authority", is_signer=True)),
     ))
-    def transfer_checked(self, amount: u64, decimals: u8, *,
+    def transfer_checked(cls, amount: u64, decimals: u8, *,
                          source, mint, destination, authority,
                          remaining_accounts=()) -> Instruction:
         data = b"\x0c" + struct.pack("<QB", amount, decimals)
-        metas = build_metas(self.program_id,
+        metas = build_metas(cls.program_id,
                             slot(source, False, True, False),
                             slot(mint, False, False, False),
                             slot(destination, False, True, False),
                             slot(authority, True, False, False))
         metas += [as_meta(m) for m in remaining_accounts]
-        return Instruction(self.program_id, metas, data)
+        return Instruction(cls.program_id, metas, data)
 
+    @classmethod
     @instruction(InstructionMeta(
         name="transfer", discriminator=b"\x03", serialization=Serialization.PACK,
         accounts=(AccountSlot("source", is_writable=True),
                   AccountSlot("destination", is_writable=True),
                   AccountSlot("authority", is_signer=True)),
     ))
-    def transfer(self, amount: u64, *, source, destination, authority,
+    def transfer(cls, amount: u64, *, source, destination, authority,
                  remaining_accounts=()) -> Instruction:
         data = b"\x03" + struct.pack("<Q", amount)
-        metas = build_metas(self.program_id,
+        metas = build_metas(cls.program_id,
                             slot(source, False, True, False),
                             slot(destination, False, True, False),
                             slot(authority, True, False, False))
         metas += [as_meta(m) for m in remaining_accounts]
-        return Instruction(self.program_id, metas, data)
+        return Instruction(cls.program_id, metas, data)
 
+    @classmethod
     @instruction(InstructionMeta(
         name="mint_to_checked", discriminator=b"\x0e", serialization=Serialization.PACK,
         accounts=(AccountSlot("mint", is_writable=True),
                   AccountSlot("account", is_writable=True),
                   AccountSlot("authority", is_signer=True)),
     ))
-    def mint_to_checked(self, amount: u64, decimals: u8, *,
+    def mint_to_checked(cls, amount: u64, decimals: u8, *,
                         mint, account, authority, remaining_accounts=()) -> Instruction:
         data = b"\x0e" + struct.pack("<QB", amount, decimals)
-        metas = build_metas(self.program_id,
+        metas = build_metas(cls.program_id,
                             slot(mint, False, True, False),
                             slot(account, False, True, False),
                             slot(authority, True, False, False))
         metas += [as_meta(m) for m in remaining_accounts]
-        return Instruction(self.program_id, metas, data)
+        return Instruction(cls.program_id, metas, data)
 
+    @classmethod
     @instruction(InstructionMeta(
         name="burn_checked", discriminator=b"\x0f", serialization=Serialization.PACK,
         accounts=(AccountSlot("account", is_writable=True),
                   AccountSlot("mint", is_writable=True),
                   AccountSlot("authority", is_signer=True)),
     ))
-    def burn_checked(self, amount: u64, decimals: u8, *,
+    def burn_checked(cls, amount: u64, decimals: u8, *,
                      account, mint, authority, remaining_accounts=()) -> Instruction:
         data = b"\x0f" + struct.pack("<QB", amount, decimals)
-        metas = build_metas(self.program_id,
+        metas = build_metas(cls.program_id,
                             slot(account, False, True, False),
                             slot(mint, False, True, False),
                             slot(authority, True, False, False))
         metas += [as_meta(m) for m in remaining_accounts]
-        return Instruction(self.program_id, metas, data)
+        return Instruction(cls.program_id, metas, data)
 
+    @classmethod
     @instruction(InstructionMeta(
         name="close_account", discriminator=b"\x09", serialization=Serialization.PACK,
         accounts=(AccountSlot("account", is_writable=True),
                   AccountSlot("destination", is_writable=True),
                   AccountSlot("owner", is_signer=True)),
     ))
-    def close_account(self, *, account, destination, owner,
+    def close_account(cls, *, account, destination, owner,
                       remaining_accounts=()) -> Instruction:
         data = b"\x09"
-        metas = build_metas(self.program_id,
+        metas = build_metas(cls.program_id,
                             slot(account, False, True, False),
                             slot(destination, False, True, False),
                             slot(owner, True, False, False))
         metas += [as_meta(m) for m in remaining_accounts]
-        return Instruction(self.program_id, metas, data)
+        return Instruction(cls.program_id, metas, data)
 
+    @classmethod
     @instruction(InstructionMeta(
         name="approve", discriminator=b"\x04", serialization=Serialization.PACK,
         accounts=(AccountSlot("source", is_writable=True), AccountSlot("delegate"),
                   AccountSlot("authority", is_signer=True)),
     ))
-    def approve(self, amount: u64, *, source, delegate, authority,
+    def approve(cls, amount: u64, *, source, delegate, authority,
                 remaining_accounts=()) -> Instruction:
         data = b"\x04" + struct.pack("<Q", amount)
-        metas = build_metas(self.program_id,
+        metas = build_metas(cls.program_id,
                             slot(source, False, True, False),
                             slot(delegate, False, False, False),
                             slot(authority, True, False, False))
         metas += [as_meta(m) for m in remaining_accounts]
-        return Instruction(self.program_id, metas, data)
+        return Instruction(cls.program_id, metas, data)
 
+    @classmethod
     @instruction(InstructionMeta(
         name="revoke", discriminator=b"\x05", serialization=Serialization.PACK,
         accounts=(AccountSlot("source", is_writable=True),
                   AccountSlot("authority", is_signer=True)),
     ))
-    def revoke(self, *, source, authority, remaining_accounts=()) -> Instruction:
+    def revoke(cls, *, source, authority, remaining_accounts=()) -> Instruction:
         data = b"\x05"
-        metas = build_metas(self.program_id,
+        metas = build_metas(cls.program_id,
                             slot(source, False, True, False),
                             slot(authority, True, False, False))
         metas += [as_meta(m) for m in remaining_accounts]
-        return Instruction(self.program_id, metas, data)
+        return Instruction(cls.program_id, metas, data)
 
     # ---- ATA convenience (targets the Associated Token Account program) ----
-    def ata_address(self, owner, mint) -> Pubkey:
+    @classmethod
+    def ata_address(cls, owner, mint) -> Pubkey:
         addr, _bump = Pubkey.find_program_address(
-            [_pk(owner), _pk(self.program_id), _pk(mint)], ATA_PROGRAM)
+            [_pk(owner), _pk(cls.program_id), _pk(mint)], ATA_PROGRAM)
         return addr
 
-    def create_ata(self, funder, owner, mint) -> Instruction:
-        ata = self.ata_address(owner, mint)
+    @classmethod
+    def create_ata(cls, funder, owner, mint) -> Instruction:
+        ata = cls.ata_address(owner, mint)
         metas = [
             AccountMeta(funder, True, True),
             AccountMeta(ata, False, True),
             AccountMeta(owner, False, False),
             AccountMeta(mint, False, False),
             AccountMeta(SYSTEM_PROGRAM, False, False),
-            AccountMeta(self.program_id, False, False),
+            AccountMeta(cls.program_id, False, False),
         ]
         return Instruction(ATA_PROGRAM, metas, b"\x00")   # ATA Create discriminator
 

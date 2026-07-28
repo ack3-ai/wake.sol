@@ -77,7 +77,7 @@ def test_generated_package_registers(gen):
 # --------------------------------------------------------------------------- #
 def test_do_swap_roundtrip_via_dispatch(gen):
     user, pool = Pubkey(1), Pubkey(2)
-    ix = gen.FixtureProgram().do_swap(123_456_789, gen.Side.Ask, user=user, pool=pool)
+    ix = gen.FixtureProgram.do_swap(123_456_789, gen.Side.Ask, user=user, pool=pool)
 
     dec = decode_instruction(gen.PROGRAM_ID, ix.data, len(ix.accounts))
     assert dec.name == "do_swap"
@@ -91,14 +91,14 @@ def test_do_swap_roundtrip_via_dispatch(gen):
 
 def test_store_alltypes_roundtrip_via_dispatch(gen):
     v = _alltypes(gen, referrer=Pubkey(11))
-    ix = gen.FixtureProgram().store(v, account=Pubkey(1))
+    ix = gen.FixtureProgram.store(v, account=Pubkey(1))
     dec = decode_instruction(gen.PROGRAM_ID, ix.data, len(ix.accounts))
     assert dec.name == "store"
     assert dec.args["cfg"] == v
 
 
 def test_noop_zero_data_args(gen):
-    ix = gen.FixtureProgram().noop(account=Pubkey(1))
+    ix = gen.FixtureProgram.noop(account=Pubkey(1))
     dec = decode_instruction(gen.PROGRAM_ID, ix.data, 1)
     assert dec.name == "noop" and dec.args == {} and dec.account_names == ["account"]
 
@@ -181,13 +181,13 @@ def test_account_encode_decode_discriminator(gen):
 def test_fixed_address_accounts_default(gen):
     # `init` has payer (required), system_program (IDL address) and
     # token_program (no address -> well-known name fallback).
-    ix = gen.FixtureProgram().init(payer=Pubkey(9))
+    ix = gen.FixtureProgram.init(payer=Pubkey(9))
     pks = [str(a.pubkey) for a in ix.accounts]
     assert pks[0] == str(Pubkey(9))
     assert pks[1] == "11111111111111111111111111111111"              # IDL address
     assert pks[2] == "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"   # well-known name
     # defaults are plain overridable kwargs
-    ix2 = gen.FixtureProgram().init(payer=Pubkey(9), token_program=Pubkey(7))
+    ix2 = gen.FixtureProgram.init(payer=Pubkey(9), token_program=Pubkey(7))
     assert ix2.accounts[2].pubkey == Pubkey(7)
     # the decoder still labels every slot by role (defaults are build-side only)
     dec = decode_instruction(gen.PROGRAM_ID, ix.data, len(ix.accounts))
@@ -198,11 +198,11 @@ def test_fixed_address_accounts_default(gen):
 def test_account_slot_accepts_metalike_forms(gen):
     from solana_fuzzer._native import Account
     user = Account(Pubkey(9))                       # a live Account view
-    ix = gen.FixtureProgram().do_swap(1, gen.Side.Bid, user=user, pool=Pubkey(2))
+    ix = gen.FixtureProgram.do_swap(1, gen.Side.Bid, user=user, pool=Pubkey(2))
     assert ix.accounts[0].pubkey == Pubkey(9)       # Account coerced to its address
     # other address-like forms coerce too
     for val, expected in ((str(Pubkey(3)), Pubkey(3)), (5, Pubkey(5))):
-        ix = gen.FixtureProgram().do_swap(1, gen.Side.Bid, user=val, pool=Pubkey(2))
+        ix = gen.FixtureProgram.do_swap(1, gen.Side.Bid, user=val, pool=Pubkey(2))
         assert ix.accounts[0].pubkey == expected
 
 
@@ -218,8 +218,8 @@ def test_wellknown_addresses_are_valid_base58():
 # --------------------------------------------------------------------------- #
 def test_generated_data_matches_handwritten_fixture(gen):
     # identical discriminators + Borsh layout -> identical instruction data
-    g = gen.FixtureProgram().do_swap(7, gen.Side.Bid, user=Pubkey(1), pool=Pubkey(2))
-    h = fp.Fixture().do_swap(7, fp.Side.Bid, user=Pubkey(1), pool=Pubkey(2))
+    g = gen.FixtureProgram.do_swap(7, gen.Side.Bid, user=Pubkey(1), pool=Pubkey(2))
+    h = fp.Fixture.do_swap(7, fp.Side.Bid, user=Pubkey(1), pool=Pubkey(2))
     assert g.data == h.data
 
     gv = _alltypes(gen, referrer=Pubkey(11))
@@ -230,8 +230,8 @@ def test_generated_data_matches_handwritten_fixture(gen):
         samples=gv.samples, expiry=gv.expiry, side=fp.Side.Ask,
         action=fp.Action.Pair(7, Pubkey(12)), inner=fp.Inner(a=9, b=False),
     )
-    assert gen.FixtureProgram().store(gv, account=Pubkey(1)).data == \
-        fp.Fixture().store(hv, account=Pubkey(1)).data
+    assert gen.FixtureProgram.store(gv, account=Pubkey(1)).data == \
+        fp.Fixture.store(hv, account=Pubkey(1)).data
 
 
 # --------------------------------------------------------------------------- #

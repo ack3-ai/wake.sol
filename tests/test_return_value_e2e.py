@@ -74,7 +74,7 @@ def _funded_payer():
 
 def test_return_value_decoded_on_simulate(adder):
     payer = _funded_payer()
-    res = payer.simulate(adder.Adder().add(5, 37))
+    res = payer.simulate(adder.Adder.add(5, 37))
     assert res.success, res.logs
     assert res.return_value == 42                       # decoded via IDL returns=u64
     assert res.raw_return_value == (42).to_bytes(8, "little")
@@ -83,27 +83,27 @@ def test_return_value_decoded_on_simulate(adder):
 
 def test_return_value_decoded_on_commit(adder):
     payer = _funded_payer()
-    res = payer.tx(adder.Adder().add(1000, 337))        # committed, not simulated
+    res = payer.tx(adder.Adder.add(1000, 337))        # committed, not simulated
     assert res.success, res.logs
     assert res.return_value == 1337
 
 
 def test_decode_return_explicit(adder):
     payer = _funded_payer()
-    res = payer.simulate(adder.Adder().add(2, 3))
+    res = payer.simulate(adder.Adder.add(2, 3))
     assert res.decode_return(u64) == 5
 
 
 def test_wraps_like_u64(adder):
     payer = _funded_payer()
-    res = payer.simulate(adder.Adder().add(2**64 - 1, 1))   # wrapping_add -> 0
+    res = payer.simulate(adder.Adder.add(2**64 - 1, 1))   # wrapping_add -> 0
     assert res.return_value == 0
 
 
 # --- rendered call trace (the visual we actually care about) -------------------
 def test_call_trace_visual_success(adder):
     payer = _funded_payer()
-    out = str(payer.simulate(adder.Adder().add(5, 37)).call_trace)
+    out = str(payer.simulate(adder.Adder.add(5, 37)).call_trace)
     assert "✓" in out            # per-node success glyph (wake-style)
     assert "CU]" in out          # per-node compute units
     assert "➞ 42" in out         # decoded return value on the ➞ line
