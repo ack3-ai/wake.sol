@@ -66,8 +66,9 @@ def test_exclude_blanks_owned_state(forked):
     # hydrated — the audited program starts from scratch.
     acc = Account(PSTATE, forked)
     assert not acc.exists
+    assert acc.lamports == 0            # absent reads as a zero balance
     with pytest.raises(LookupError):
-        _ = acc.lamports
+        _ = acc.data
 
 
 def test_local_wins_over_fork(forked):
@@ -100,7 +101,17 @@ def test_without_fork_reads_are_unchanged():
     # No fork configured: a missing account raises as before, no hydration.
     svm = LiteSVM()
     with pytest.raises(LookupError):
-        _ = Account(FORKED, svm).lamports
+        _ = Account(FORKED, svm).data
+
+
+def test_lamports_write_hydrates_first(forked):
+    # A balance write must hydrate the forked account before overwriting it,
+    # or the snapshot's data/owner would be lost to a blank default account.
+    acc = Account(FORKED, forked)
+    acc.lamports += 1
+    assert acc.lamports == 43           # snapshot's 42, topped up
+    assert acc.data == b"hi"            # snapshot data survived the write
+    assert acc.owner == SYSTEM
 
 
 # --- fork_programs / forked_accounts --------------------------------------- #

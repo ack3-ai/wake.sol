@@ -98,6 +98,79 @@ def test_missing_account_raises():
         pass
 
 
+def test_missing_account_reads_zero_lamports():
+    # A zero balance and a non-existent account are the same state on Solana,
+    # so the balance read answers 0 instead of raising (`exists` distinguishes).
+    acc = Account(Pubkey(8))
+    assert not acc.exists
+    assert acc.lamports == 0
+
+
+def test_lamports_setter():
+    acc = Account.new()
+    acc.lamports = 5_000
+    assert acc.exists and acc.lamports == 5_000
+
+    acc.lamports += 1_000                   # read-modify-write via the getter
+    assert acc.lamports == 6_000
+    acc.lamports -= 500
+    assert acc.lamports == 5_500
+
+
+def test_lamports_setter_preserves_other_fields():
+    addr, owner = Pubkey(43), Pubkey(2)
+    svm.set_account(addr, lamports=10, data=b"body", owner=owner,
+                    executable=False, rent_epoch=7)
+    acc = Account(addr)
+
+    acc.lamports += 90
+    assert acc.lamports == 100
+    assert acc.data == b"body"              # only the balance moved
+    assert acc.owner == owner
+    assert acc.rent_epoch == 7
+
+
+def test_lamports_setter_zero_deletes_account():
+    # litesvm reaps a zero-lamport account, as the real runtime does — so the
+    # data and owner go with it, not just the balance.
+    addr = Pubkey(44)
+    svm.set_account(addr, lamports=10, data=b"body", owner=Pubkey(2))
+    acc = Account(addr)
+
+    acc.lamports = 0
+    assert not acc.exists
+    assert acc.lamports == 0
+    with pytest.raises(LookupError):
+        _ = acc.data
+
+
+def test_lamports_setter_rejects_underflow_and_overflow():
+    acc = Account.new()
+    acc.lamports = 100
+
+    with pytest.raises(ValueError, match="cannot go negative"):
+        acc.lamports -= 101                 # Python subtracts; the setter sees -1
+    assert acc.lamports == 100              # and the balance is untouched
+
+    with pytest.raises(ValueError, match="exceeds the maximum balance"):
+        acc.lamports = 2**64
+    assert acc.lamports == 100
+
+    with pytest.raises(TypeError):
+        acc.lamports = "lots"
+
+
+def test_lamports_setter_funds_a_fee_payer():
+    # The setter is a real alternative to airdrop: fund a payer, send a tx.
+    payer, dest = Account.new(), Account.new()
+    payer.lamports = 1_000_000_000
+
+    amount = svm.minimum_balance_for_rent_exemption(0)
+    res = payer.tx(svm.system.transfer(amount, from_=payer, to=dest))
+    assert not res.error
+    assert dest.lamports == amount
+
+
 def test_reset():
     alice = Account.new()
     svm.airdrop(alice, 1_000_000_000)

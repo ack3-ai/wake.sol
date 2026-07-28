@@ -4,7 +4,7 @@
 
 `Account` is a **handle to the account at an address** in an SVM — the lens through which you read that account's state and, when it holds a keypair, act as fee payer / signer. Two things the name elides:
 
-- **It need not exist on-chain.** Every address has an account *slot*; "doesn't exist" just means empty / not-yet-created. Check `exists`; reads like `lamports` / `data` raise until the account is funded.
+- **It need not exist on-chain.** Every address has an account *slot*; "doesn't exist" just means empty / not-yet-created. Check `exists`; `lamports` reads 0 for such a slot, while `data` / `owner` / `executable` / `rent_epoch` raise until the account is funded.
 - **It may or may not hold a private key.** It can sign only when created with a keypair (`Account.new()` / `Account.from_secret()`); a bare-address view or a PDA is read/inspect-only (`can_sign == False`).
 
 ## Creating / viewing / deriving
@@ -35,8 +35,8 @@ Every read delegates to the bound SVM, so a handle is always current:
 ```python
 acc.pubkey        # Pubkey (the address)
 acc.exists        # bool — is there an account at this address?
-acc.lamports      # int  — balance (raises if it doesn't exist)
-acc.data          # bytes — account data
+acc.lamports      # int  — balance (0 if it doesn't exist)
+acc.data          # bytes — account data (raises if it doesn't exist)
 acc.can_sign      # bool — does it hold a keypair?
 acc.secret        # bytes — 64-byte secret (raises if no keypair)
 acc.svm           # the LiteSVM this handle is bound to
@@ -48,7 +48,7 @@ acc.svm           # the LiteSVM this handle is bound to
 
 ## Funding & seeding accounts
 
-Two ways to put state at an address:
+Three ways to put state at an address:
 
 ```python
 # 1. airdrop lamports (creates/credits the account)
@@ -57,7 +57,19 @@ svm.airdrop(acc, 1_000_000_000)
 # 2. overwrite the whole account (lamports + data + owner + flags)
 svm.set_account(addr, lamports=2_000_000, data=b"...", owner=some_program,
                 executable=False, rent_epoch=0)
+
+# 3. write the balance alone, leaving data / owner / flags untouched
+acc.lamports = 2_000_000
+acc.lamports += 500        # top up
+acc.lamports -= 500        # burn
 ```
+
+All three are **cheatcodes** — they mint and burn lamports out of thin air, which no real chain permits. `acc.lamports = …` is the quietest of them: no transaction, no fee, no `TransactionResult`, just a state write. Two edges to know:
+
+- **Assigning 0 deletes the account** — data and owner go with it. That is faithful to Solana, where a zero-lamport account is reaped, but it makes `acc.lamports = 0` a rather bigger hammer than it looks. To drain an account and keep its data, leave it a lamport.
+- **A balance can't go negative.** `acc.lamports -= too_much` raises `ValueError` (Python does the subtraction, so the setter sees the negative result and reports it against the current balance).
+
+Writing the balance of a *program* account re-loads its ELF into the program cache, and writing a *sysvar* account re-parses its data into the sysvar cache — correct, but not free.
 
 `set_account` is how you seed arbitrary program state for a test — e.g. write a Borsh-encoded account body (with its 8-byte discriminator) produced by `SomeAccount(...).encode()` (see [§6](06-types-and-encoding.md)):
 

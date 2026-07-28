@@ -926,9 +926,9 @@ class Account:
 
     * **It need not exist on-chain.** Every address has an account *slot*;
       "doesn't exist" just means empty / not-yet-created. An `Account` is a
-      handle to that slot, present or not — check `exists`; reads like
-      `lamports` / `data` raise until it's funded (`svm.airdrop` /
-      `svm.set_account`).
+      handle to that slot, present or not — check `exists`. `lamports` reads 0
+      for such a slot, but `data` / `owner` / `executable` / `rent_epoch` raise
+      until it's funded (`svm.airdrop` / `svm.set_account` / `acc.lamports =`).
     * **It may or may not hold a private key.** It carries a keypair (so it can
       sign / pay — `can_sign`, `tx`, `simulate`) only when made via
       `Account.new()` / `Account.from_secret()`. A bare-address view
@@ -1022,9 +1022,25 @@ class Account:
 
     @property
     def lamports(self) -> u64:
-        """The account's lamport balance; raises if it does not exist. Typed
-        `u64` so it drops straight into builder args / struct fields of that
-        width without a type-checker complaint."""
+        """The account's lamport balance. An address with no account reads 0
+        rather than raising — zero-lamport *is* how "absent" is spelled on
+        Solana; use `exists` to tell them apart. Typed `u64` so it drops
+        straight into builder args / struct fields of that width without a
+        type-checker complaint."""
+        ...
+
+    @lamports.setter
+    def lamports(self, value: int) -> None:
+        """**Cheatcode.** Set the balance, leaving data / owner / flags
+        untouched (`acc.lamports += 1_000` works) — mints or burns lamports out
+        of thin air, impossible on a real chain. Unlike `svm.airdrop` it is a
+        silent state write: no transaction, no fee, no result.
+
+        Assigning to an address with no account creates one (System-owned,
+        empty data); assigning 0 deletes the account outright — data and owner
+        go with it — since zero-lamport accounts are reaped. Raises
+        `ValueError` if the new balance would be negative (a `-=` past zero) or
+        exceed `u64`."""
         ...
 
     @property

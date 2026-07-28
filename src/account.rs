@@ -212,8 +212,10 @@ impl PyAccount {
 /// * **It need not exist on-chain.** On Solana every address has an account
 ///   *slot*; "doesn't exist" just means empty / zero-lamport / not-yet-created.
 ///   So an `Account` is a handle to that slot, present or not — check
-///   `exists`, and reads like `lamports` / `data` raise until it's funded
-///   (e.g. via `svm.airdrop` or `svm.set_account`).
+///   `exists`. `lamports` reads 0 for such a slot (zero-lamport *is* how
+///   "absent" is spelled on Solana), but the reads that have no meaningful
+///   empty value — `data`, `owner`, `executable`, `rent_epoch` — raise until
+///   it's funded (e.g. via `svm.airdrop` or `svm.set_account`).
 /// * **It may or may not hold a private key.** It carries a keypair (so it can
 ///   sign / pay — see `can_sign`, `tx`, `simulate`) only when created via
 ///   `Account.new()` / `Account.from_secret()`. A bare-address view
@@ -233,6 +235,29 @@ pub struct PyAccount {
 impl PyAccount {
     fn missing(&self) -> PyErr {
         PyLookupError::new_err(format!("account {} does not exist", self.address.inner))
+    }
+
+    /// Explain a `lamports = …` value the `u64` slot can't hold, in balance
+    /// terms rather than PyO3's bare `OverflowError`. The overwhelmingly common
+    /// case is `acc.lamports -= n` past zero: Python does the subtraction, so
+    /// the setter sees an already-negative number and never the operands —
+    /// hence quoting the current balance, which is what makes the message
+    /// diagnostic. `err` (the extraction failure) is returned unchanged for a
+    /// value that isn't an integer at all.
+    fn bad_lamports(&self, value: &Bound<'_, PyAny>, current: u64, err: PyErr) -> PyErr {
+        let Ok(v) = value.extract::<i128>() else { return err };
+        if v < 0 {
+            PyValueError::new_err(format!(
+                "cannot set lamports to {v}: a balance cannot go negative \
+                 (account {} holds {current})",
+                self.address.inner
+            ))
+        } else {
+            PyValueError::new_err(format!(
+                "cannot set lamports to {v}: exceeds the maximum balance of {}",
+                u64::MAX
+            ))
+        }
     }
 
     /// A read-only view of `address` bound to `svm` (no keypair, cannot sign) —
@@ -414,14 +439,43 @@ impl PyAccount {
         Ok(svm.inner.get_account(&self.address.inner).is_some())
     }
 
+    /// The account's balance. An address with no account reads 0 rather than
+    /// raising — a zero balance and a non-existent account are the same state
+    /// on Solana (a real RPC `getBalance` answers 0, and litesvm drops an
+    /// account the moment its balance reaches zero). Use `exists` to tell the
+    /// two apart in the rare case it matters.
     #[getter]
     fn lamports(&self, py: Python<'_>) -> PyResult<u64> {
         let mut svm = self.svm.borrow_mut(py);
         svm.ensure_present(std::slice::from_ref(&self.address.inner))?;
-        svm.inner
+        Ok(svm
+            .inner
             .get_account(&self.address.inner)
-            .map(|a| a.lamports)
-            .ok_or_else(|| self.missing())
+            .map_or(0, |a| a.lamports))
+    }
+
+    /// **Cheatcode.** Set the account's balance, leaving data / owner / flags
+    /// untouched — mints or burns lamports out of thin air, which cannot happen
+    /// on a real chain. Unlike `svm.airdrop` this is a silent state write: no
+    /// transaction, no fee, no result.
+    ///
+    /// Assigning to an address with no account creates one (System-owned, empty
+    /// data); assigning 0 deletes the account outright — data and owner go with
+    /// it — because litesvm reaps zero-lamport accounts, as the real runtime
+    /// does.
+    #[setter]
+    fn set_lamports(&self, py: Python<'_>, value: &Bound<'_, PyAny>) -> PyResult<()> {
+        let mut svm = self.svm.borrow_mut(py);
+        svm.ensure_present(std::slice::from_ref(&self.address.inner))?;
+        let mut acc = svm
+            .inner
+            .get_account(&self.address.inner)
+            .unwrap_or_default();
+        acc.lamports = match value.extract::<u64>() {
+            Ok(v) => v,
+            Err(e) => return Err(self.bad_lamports(value, acc.lamports, e)),
+        };
+        svm.inner.set_account(self.address.inner, acc).map_err(to_py_err)
     }
 
     #[getter]
