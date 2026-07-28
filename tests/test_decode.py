@@ -1,5 +1,5 @@
-from solana_fuzzer import *
-from solana_fuzzer import decode_instruction
+from wake_sol import *
+from wake_sol import decode_instruction
 
 TOKEN = Pubkey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")
 MINT_LEN = 82

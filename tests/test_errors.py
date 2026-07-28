@@ -14,7 +14,7 @@ import sys
 
 import pytest
 
-from solana_fuzzer import (
+from wake_sol import (
     Account,
     AnchorError,
     ProgramError,
@@ -27,10 +27,10 @@ from solana_fuzzer import (
     must_revert,
     svm,
 )
-from solana_fuzzer import _errors as E
-from solana_fuzzer._addresses import SYSTEM_PROGRAM_ID, TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID
-from solana_fuzzer._gen import run_gen
-from solana_fuzzer import Pubkey
+from wake_sol import _errors as E
+from wake_sol._addresses import SYSTEM_PROGRAM_ID, TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID
+from wake_sol._gen import run_gen
+from wake_sol import Pubkey
 
 _SYSTEM = str(SYSTEM_PROGRAM_ID)
 _TOKEN = str(TOKEN_PROGRAM_ID)

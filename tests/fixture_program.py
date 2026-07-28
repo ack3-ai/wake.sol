@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from enum import IntEnum
 from typing import Annotated, Optional
 
-from solana_fuzzer._codec import (
+from wake_sol._codec import (
     AccountSlot,
     BorshEnumMeta,
     BorshMeta,
@@ -36,8 +36,8 @@ from solana_fuzzer._codec import (
     u128,
     variant,
 )
-from solana_fuzzer._interface import register
-from solana_fuzzer._native import Instruction, Pubkey
+from wake_sol._interface import register
+from wake_sol._native import Instruction, Pubkey
 
 PROGRAM_ID = Pubkey(7)
 PROGRAM_NAME = "Fixture Program"

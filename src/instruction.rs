@@ -5,7 +5,7 @@ use crate::PyPubkey;
 
 /// Per-account metadata within an instruction: the address, plus whether the
 /// account must sign the transaction and whether it may be written to.
-#[pyclass(name = "AccountMeta", module = "solana_fuzzer._native", from_py_object)]
+#[pyclass(name = "AccountMeta", module = "wake_sol._native", from_py_object)]
 #[derive(Clone)]
 pub struct PyAccountMeta {
     pub(crate) pubkey: PyPubkey,
@@ -113,7 +113,7 @@ pub fn writable_signer(account: &Bound<'_, PyAny>) -> PyResult<PyAccountMeta> {
 
 /// A single instruction — a program to invoke, the account metas it
 /// references, and an opaque data payload.
-#[pyclass(name = "Instruction", module = "solana_fuzzer._native")]
+#[pyclass(name = "Instruction", module = "wake_sol._native")]
 pub struct PyInstruction {
     program_id: PyPubkey,
     accounts: Vec<PyAccountMeta>,

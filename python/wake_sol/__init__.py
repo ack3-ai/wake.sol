@@ -6,7 +6,7 @@ from ordered_set import OrderedSet as OrderedSet
 from rich.console import Console as _Console
 
 # A markup-disabled Rich console, re-exported as `print` so tests can
-# `from solana_fuzzer import print` and have `__rich__` objects (notably
+# `from wake_sol import print` and have `__rich__` objects (notably
 # CallTrace) render colored. Markup is OFF by default — a stray "[..]" in a
 # label / log / arbitrary string would otherwise be parsed as Rich markup and
 # can raise. Pass markup=True explicitly to a call to opt back in.
@@ -65,7 +65,7 @@ from ._errors import (
 #: ``LiteSVM()``.
 svm = _default_svm()
 
-#: Process-global random source. The ``solana-fuzzer test`` CLI reseeds this
+#: Process-global random source. The ``wake-sol test`` CLI reseeds this
 #: deterministically before every test (base seed + test node id), so test
 #: randomness is reproducible regardless of run order.
 random = _random.Random()

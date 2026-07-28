@@ -5,7 +5,7 @@ Doubles as the canonical example of the fuzzing API:
 * deploy the program and build per-sequence state in ``pre_sequence`` (the engine
   wipes the SVM to genesis before each sequence);
 * drive it with ``@flow`` methods that draw randomness from
-  ``solana_fuzzer.random`` (so a run reproduces from ``--seed``);
+  ``wake_sol.random`` (so a run reproduces from ``--seed``);
 * check on-chain state against a Python model in an ``@invariant``.
 
 Run just this: ``pytest tests/test_fuzz_counter.py`` (add ``-s`` to see the
@@ -16,7 +16,7 @@ from pathlib import Path
 
 import pytest
 
-from solana_fuzzer import (
+from wake_sol import (
     Account,
     FuzzTest,
     Instruction,

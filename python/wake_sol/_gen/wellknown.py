@@ -38,7 +38,7 @@ from .._addresses import (
 )
 
 #: normalized account name -> canonical base58 address. Addresses come from the
-#: single source of truth, `solana_fuzzer._addresses`; this table only adds the
+#: single source of truth, `wake_sol._addresses`; this table only adds the
 #: name aliases (e.g. both spellings of token-2022) the IDL might use.
 NAME_TO_ADDRESS = {
     "systemprogram": str(SYSTEM_PROGRAM_ID),

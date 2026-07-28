@@ -11,25 +11,25 @@ The package is a Rust/pyo3 extension built with [maturin](https://www.maturin.rs
 .venv/bin/python -m pytest -q  # run the suite
 ```
 
-Use the project interpreter (`.venv/bin/python`) for everything. The CLI entry point is `solana-fuzzer` (e.g. `solana-fuzzer test`, `solana-fuzzer gen`).
+Use the project interpreter (`.venv/bin/python`) for everything. The CLI entry point is `wake-sol` (e.g. `wake-sol test`, `wake-sol gen`).
 
 ## The global `svm`
 
 Importing the package gives you a process-global SVM instance, `svm` — the implicit target for `Account(...)` when you don't pass `svm=`:
 
 ```python
-from solana_fuzzer import svm, Account, LiteSVM
+from wake_sol import svm, Account, LiteSVM
 
 svm                 # the global LiteSVM, created once
 other = LiteSVM()   # a separate, independent chain
 ```
 
-Under `pytest` (plain `pytest` or `solana-fuzzer test`) the global `svm` is **reset before every test** and `random` is reseeded deterministically, so tests are isolated and reproducible (see the seed printed in the test summary).
+Under `pytest` (plain `pytest` or `wake-sol test`) the global `svm` is **reset before every test** and `random` is reseeded deterministically, so tests are isolated and reproducible (see the seed printed in the test summary).
 
 ## Your first transaction
 
 ```python
-from solana_fuzzer import svm, Account
+from wake_sol import svm, Account
 
 # fresh keypair-backed accounts (they can sign)
 alice = Account.new()
@@ -62,9 +62,9 @@ res.events                   # list — decoded events emitted (§10)
 res.call_trace               # CallTrace — the decoded instruction tree (§4)
 ```
 
-> **Tip:** `from solana_fuzzer import print` re-exports a Rich console's `print`, so `print(res.call_trace)` (and any `__rich__` object) renders colored. It intentionally shadows the builtin `print` in that test module. **Rich markup is off by default** — a stray `[..]` in a label or log won't be parsed (and can't raise); pass `markup=True` to a call if you want markup.
+> **Tip:** `from wake_sol import print` re-exports a Rich console's `print`, so `print(res.call_trace)` (and any `__rich__` object) renders colored. It intentionally shadows the builtin `print` in that test module. **Rich markup is off by default** — a stray `[..]` in a label or log won't be parsed (and can't raise); pass `markup=True` to a call if you want markup.
 >
-> Under `pytest -v` (or `solana-fuzzer test -v`), call traces print **full addresses** instead of the `3Ftw…HBaY` ellipsis, and the plugin installs Rich's traceback handler.
+> Under `pytest -v` (or `wake-sol test -v`), call traces print **full addresses** instead of the `3Ftw…HBaY` ellipsis, and the plugin installs Rich's traceback handler.
 
 To try a transaction **without committing** state (inspect logs / CUs / return data), use [`simulate`](03-transactions.md) instead of `tx`:
 

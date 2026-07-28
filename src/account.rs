@@ -28,34 +28,34 @@ fn remember_keypair(kp: &Keypair) {
 }
 
 /// Draw 32 seed bytes from the harness's single global RNG
-/// (`solana_fuzzer.random`). Keeping that one Python `random` as the sole
+/// (`wake_sol.random`). Keeping that one Python `random` as the sole
 /// entropy source — rather than Rust `OsRng` (`Keypair::new`) — is what makes a
 /// generated keypair, and therefore a whole fuzz run, reproducible from the base
-/// `--seed`. The pytest plugin reseeds `solana_fuzzer.random` before every test,
+/// `--seed`. The pytest plugin reseeds `wake_sol.random` before every test,
 /// so keys are stable given the seed and the flow order.
 fn draw_seed(py: Python<'_>) -> PyResult<[u8; 32]> {
     let bytes: Vec<u8> = py
-        .import("solana_fuzzer")?
+        .import("wake_sol")?
         .getattr("random")?
         .call_method1("randbytes", (32usize,))?
         .extract()?;
     bytes.as_slice().try_into().map_err(|_| {
-        PyValueError::new_err("solana_fuzzer.random.randbytes(32) returned wrong length")
+        PyValueError::new_err("wake_sol.random.randbytes(32) returned wrong length")
     })
 }
 
 /// Resolve a mixed instruction list — plain `Instruction`s and precompile
 /// `verify(...)` results (`PrecompileInstruction`, whose offset instruction
 /// indices bind to final transaction position) — into concrete `Instruction`s,
-/// by delegating to `solana_fuzzer._precompiles.materialize`. A no-op for a list
+/// by delegating to `wake_sol._precompiles.materialize`. A no-op for a list
 /// that is already all `Instruction`s.
 fn materialize_ixs(py: Python<'_>, ixs: Vec<Py<PyAny>>) -> PyResult<Vec<Py<PyInstruction>>> {
-    py.import("solana_fuzzer._precompiles")?
+    py.import("wake_sol._precompiles")?
         .call_method1("materialize", (ixs,))?
         .extract()
 }
 
-/// Construct a Python `SignedMessage` claim (`solana_fuzzer._precompiles`) from
+/// Construct a Python `SignedMessage` claim (`wake_sol._precompiles`) from
 /// raw components — the bridge from Rust-side signing to the Python claim object
 /// the precompile builders consume.
 pub(crate) fn build_signed_message(
@@ -67,7 +67,7 @@ pub(crate) fn build_signed_message(
     recovery_id: Option<u8>,
 ) -> PyResult<Py<PyAny>> {
     let cls = py
-        .import("solana_fuzzer._precompiles")?
+        .import("wake_sol._precompiles")?
         .getattr("SignedMessage")?;
     let obj = cls.call1((
         curve,
@@ -225,7 +225,7 @@ impl PyAccount {
 /// Holds no account data of its own — every read delegates to the bound SVM,
 /// so the view is always current. The SVM is bound eagerly at construction; if
 /// `svm` is omitted the process-global `default_svm` is used.
-#[pyclass(name = "Account", module = "solana_fuzzer._native")]
+#[pyclass(name = "Account", module = "wake_sol._native")]
 pub struct PyAccount {
     pub(crate) address: PyPubkey,
     svm: Py<PyLiteSVM>,
@@ -299,7 +299,7 @@ impl PyAccount {
     }
 
     /// Create an account backed by a freshly generated keypair — can sign. The
-    /// keypair is derived from the harness's global RNG (`solana_fuzzer.random`),
+    /// keypair is derived from the harness's global RNG (`wake_sol.random`),
     /// not OS entropy, so it is reproducible from the base `--seed`.
     #[staticmethod]
     #[pyo3(name = "new", signature = (svm = None))]
@@ -379,7 +379,7 @@ impl PyAccount {
     /// and falls back to a truncated address) is `str(account)`.
     #[getter]
     fn label(&self, py: Python<'_>) -> PyResult<Option<String>> {
-        py.import("solana_fuzzer._labels")?
+        py.import("wake_sol._labels")?
             .call_method1("get_label", (self.address.inner.to_string(),))?
             .extract()
     }
@@ -387,7 +387,7 @@ impl PyAccount {
     /// Assign an identity label to this account's address.
     #[setter]
     fn set_label(&self, py: Python<'_>, name: String) -> PyResult<()> {
-        py.import("solana_fuzzer._labels")?
+        py.import("wake_sol._labels")?
             .call_method1("set_label", (self.address.inner.to_string(), name))?;
         Ok(())
     }
@@ -640,14 +640,14 @@ impl PyAccount {
     /// The resolved display name: a well-known program/sysvar name, else an
     /// assigned label, else a truncated base58 of the address.
     fn __str__(&self, py: Python<'_>) -> PyResult<String> {
-        py.import("solana_fuzzer._labels")?
+        py.import("wake_sol._labels")?
             .call_method1("resolve_label", (self.address.inner.to_string(),))?
             .extract()
     }
 
     fn __repr__(&self, py: Python<'_>) -> PyResult<String> {
         let label: Option<String> = py
-            .import("solana_fuzzer._labels")?
+            .import("wake_sol._labels")?
             .call_method1("get_label", (self.address.inner.to_string(),))?
             .extract()?;
         let mut parts = vec![self.address.inner.to_string()];

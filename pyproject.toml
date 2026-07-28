@@ -3,7 +3,7 @@ requires = ["maturin>=1.7,<2.0"]
 build-backend = "maturin"
 
 [project]
-name = "solana-fuzzer"
+name = "wake.sol"
 version = "0.1.0"
 description = "Python testing/fuzzing harness for Solana programs on top of litesvm"
 requires-python = ">=3.9"
@@ -13,7 +13,7 @@ dependencies = [
     "rich>=13.0",
     "ipdb>=0.13",
     "tblib>=3.0",  # pickle tracebacks across the multiprocess runner's queue
-    # Re-exported as `solana_fuzzer.OrderedSet`. A plain `set` iterates in hash
+    # Re-exported as `wake_sol.OrderedSet`. A plain `set` iterates in hash
     # order, and `Account` hashes change every run, so iterating one inside a flow
     # or invariant makes a seeded campaign non-reproducible. Never use `set` in a
     # fuzz test; use this.
@@ -25,12 +25,12 @@ classifiers = [
 ]
 
 [project.scripts]
-solana-fuzzer = "solana_fuzzer.cli:main"
+wake-sol = "wake_sol.cli:main"
 
 [project.entry-points.pytest11]
-solana_fuzzer = "solana_fuzzer._pytest_plugin"
+wake_sol = "wake_sol._pytest_plugin"
 
 [tool.maturin]
 features = ["pyo3/extension-module"]
 python-source = "python"
-module-name = "solana_fuzzer._native"
+module-name = "wake_sol._native"

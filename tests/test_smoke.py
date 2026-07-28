@@ -1,9 +1,9 @@
 import pytest
 
-from solana_fuzzer import *
-from solana_fuzzer._codec import AccountFlagOverride
+from wake_sol import *
+from wake_sol._codec import AccountFlagOverride
 
-# The plugin (`solana-fuzzer test` / plain `pytest`) resets the global `svm`
+# The plugin (`wake-sol test` / plain `pytest`) resets the global `svm`
 # and reseeds `random` before each test, so tests use them directly.
 
 TOKEN_PROGRAM = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"

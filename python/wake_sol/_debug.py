@@ -11,7 +11,7 @@ are:
   raised exception bound to ``__exception__`` in every frame.
 
 Adaptations for this harness (vanilla pytest, single process, ``pytypes/``
-codegen, Rust-raised :class:`~solana_fuzzer._errors.TransactionFailed`):
+codegen, Rust-raised :class:`~wake_sol._errors.TransactionFailed`):
 
 * The frame the debugger lands on skips this package's own frames and the
   generated ``pytypes/`` bindings, not just ``pytypes/`` — because the failure
@@ -21,8 +21,8 @@ codegen, Rust-raised :class:`~solana_fuzzer._errors.TransactionFailed`):
   "<nodeid>"`` (this harness derives the per-test seed; there is no mutable
   global seed to inject as a pdb command the way wake does).
 
-Multiprocess note: the multiprocess runner (``solana-fuzzer test -P N``, see
-:mod:`solana_fuzzer._mp_worker`) wires the debugger across processes through the
+Multiprocess note: the multiprocess runner (``wake-sol test -P N``, see
+:mod:`wake_sol._mp_worker`) wires the debugger across processes through the
 seam here. The :func:`set_exception_handler` / :func:`get_exception_handler` /
 :func:`reset_exception_handled` seam mirrors wake's globals so a worker can
 install a routing handler that hands the breakpoint to whichever process owns
@@ -233,7 +233,7 @@ def attach_debugger(
     # mirroring wake's `.wake/crash.txt`.
     tb_lines = traceback.format_exception(e_type, e, tb)
     try:
-        crash_dir = Path.cwd() / ".solana-fuzzer"
+        crash_dir = Path.cwd() / ".wake-sol"
         crash_dir.mkdir(parents=True, exist_ok=True)
         (crash_dir / "crash.txt").write_text("".join(tb_lines))
     except OSError:

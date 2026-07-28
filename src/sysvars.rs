@@ -14,7 +14,7 @@ use solana_epoch_rewards::EpochRewards;
 use solana_epoch_schedule::EpochSchedule;
 use solana_rent::Rent;
 
-#[pyclass(name = "Clock", module = "solana_fuzzer._native", frozen, get_all)]
+#[pyclass(name = "Clock", module = "wake_sol._native", frozen, get_all)]
 pub struct PyClock {
     pub slot: u64,
     pub epoch_start_timestamp: i64,
@@ -47,7 +47,7 @@ impl PyClock {
     }
 }
 
-#[pyclass(name = "Rent", module = "solana_fuzzer._native", frozen, get_all)]
+#[pyclass(name = "Rent", module = "wake_sol._native", frozen, get_all)]
 pub struct PyRent {
     pub lamports_per_byte_year: u64,
     pub exemption_threshold: f64,
@@ -75,7 +75,7 @@ impl PyRent {
     }
 }
 
-#[pyclass(name = "EpochSchedule", module = "solana_fuzzer._native", frozen, get_all)]
+#[pyclass(name = "EpochSchedule", module = "wake_sol._native", frozen, get_all)]
 pub struct PyEpochSchedule {
     pub slots_per_epoch: u64,
     pub leader_schedule_slot_offset: u64,
@@ -108,7 +108,7 @@ impl PyEpochSchedule {
     }
 }
 
-#[pyclass(name = "EpochRewards", module = "solana_fuzzer._native", frozen)]
+#[pyclass(name = "EpochRewards", module = "wake_sol._native", frozen)]
 pub struct PyEpochRewards {
     distribution_starting_block_height: u64,
     num_partitions: u64,

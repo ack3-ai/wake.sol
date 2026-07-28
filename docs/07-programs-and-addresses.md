@@ -34,7 +34,7 @@ Each returns an `Instruction` you hand to `account.tx(...)` / `simulate(...)`. T
 Programs and sysvars are importable as `Pubkey` constants from the top level — no need to hand-type base58:
 
 ```python
-from solana_fuzzer import (
+from wake_sol import (
     SYSTEM_PROGRAM_ID, TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID,
     ASSOCIATED_TOKEN_PROGRAM_ID, RENT_SYSVAR, CLOCK_SYSVAR,
     INSTRUCTIONS_SYSVAR, RECENT_BLOCKHASHES_SYSVAR, SLOT_HASHES_SYSVAR,
@@ -47,7 +47,7 @@ from solana_fuzzer import (
 
 ## Generated programs (`pytypes`)
 
-For your own / dependency Anchor programs, `solana-fuzzer gen` reads the IDL JSON and emits a self-registering Python module per program into a `pytypes/` package. Importing a generated module registers the program, so `decode_instruction` (and call traces) decode it, and you get a typed builder:
+For your own / dependency Anchor programs, `wake-sol gen` reads the IDL JSON and emits a self-registering Python module per program into a `pytypes/` package. Importing a generated module registers the program, so `decode_instruction` (and call traces) decode it, and you get a typed builder:
 
 ```python
 from pytypes.my_program import MyProgram, PROGRAM_ID, SomeAccount
@@ -67,9 +67,9 @@ Highlights of the generated surface:
 The generator itself (CLI options, discovery, determinism, provenance) is documented in the design spec: [../design/pytypes-generator-spec/](../design/pytypes-generator-spec/index.md) (esp. [§9 generation pipeline](../design/pytypes-generator-spec/09-generation-pipeline.md)). Quick start:
 
 ```bash
-solana-fuzzer gen --target-idl ./idls --out ./pytypes   # generate builders for these programs
-solana-fuzzer gen check                                 # CI drift gate
-solana-fuzzer gen list                                  # show discovered programs
+wake-sol gen --target-idl ./idls --out ./pytypes   # generate builders for these programs
+wake-sol gen check                                 # CI drift gate
+wake-sol gen list                                  # show discovered programs
 ```
 
 **`--target-idl` vs `--idls`.** `--target-idl` (default `target/idl`) is the set of programs you want *builders and decoders generated for* — your own program(s), the audit target. `--idls` (default `idls`) is a **dependency**-IDL root used only to *resolve types* referenced by the targets; nothing is generated for dep-only programs. So point `--target-idl` at what you're testing. `--only <base58>` narrows generation to specific program addresses (repeatable). The other flags (`--check`, `--strict`, `--no-facts`, `--verify`, `--allow-unverified`, `-v`) are covered in the design spec.

@@ -10,7 +10,7 @@
 ## Creating / viewing / deriving
 
 ```python
-from solana_fuzzer import Account, Pubkey, svm
+from wake_sol import Account, Pubkey, svm
 
 a = Account.new()                       # fresh keypair → can sign
 b = Account.from_secret(secret_bytes)   # known 64-byte secret → can sign

@@ -1,9 +1,9 @@
 """Server-side pytest plugin for the multiprocess test runner.
 
-``solana-fuzzer test -P N`` runs **one server pytest session + N worker
+``wake-sol test -P N`` runs **one server pytest session + N worker
 sessions**, all in one process group. The CLI starts the server with
 ``pytest.main(server_args, plugins=[PytestPluginMultiprocessServer(...)])`` and
-``-p no:solana_fuzzer`` (so the entry-point plugin does not register ``--seed``
+``-p no:wake_sol`` (so the entry-point plugin does not register ``--seed``
 or print a meaningless "Base seed" summary in the server). The server *collects*
 tests but never runs them — :meth:`pytest_runtestloop` returns ``True`` after
 draining the workers' event queue.
@@ -18,9 +18,9 @@ live-object handoff of the ``Connection``/``Queue``/plugin instance):
 
 Lifecycle:
 
-1. :meth:`pytest_sessionstart` wipes ``.solana-fuzzer/logs/testing``, then forks
+1. :meth:`pytest_sessionstart` wipes ``.wake-sol/logs/testing``, then forks
    N workers, each a full ``pytest.main`` with the auto-loaded entry-point
-   plugin plus one :class:`~solana_fuzzer._mp_worker.PytestPluginMultiprocessWorker`.
+   plugin plus one :class:`~wake_sol._mp_worker.PytestPluginMultiprocessWorker`.
    Afterwards the server sets ``SIGINT`` to ``SIG_IGN`` — Ctrl+C reaches the
    workers directly (they catch it and exit cleanly).
 2. :meth:`pytest_runtestloop` receives each worker's collected node-id list over
@@ -39,7 +39,7 @@ Lifecycle:
    ``fuzz_test_stats`` message), the per-worker seeds (and their reproduce
    lines), and the crash-log paths workers reported. Worker seeds are the
    server's, not the entry-point plugin's — the server runs with
-   ``-p no:solana_fuzzer``.
+   ``-p no:wake_sol``.
 
 Interactive attach (Phase 2). With ``--attach`` a worker that raises (or hits a
 ``breakpoint()``) ships a pickled traceback / source snippet and blocks; the
@@ -73,7 +73,7 @@ from typing import Callable, Dict, List, Optional, Tuple, Union
 
 import pytest
 
-from solana_fuzzer._mp_serial import REPORT_JSON, REPORT_PICKLE, load_report
+from wake_sol._mp_serial import REPORT_JSON, REPORT_PICKLE, load_report
 
 
 class PytestPluginMultiprocessServer:
@@ -96,7 +96,7 @@ class PytestPluginMultiprocessServer:
         self._attach_first = attach_first
         # index -> (Process, parent end of its Pipe)
         self._processes: Dict[int, tuple] = {}
-        # Fuzz-stats registries merged across workers (see solana_fuzzer.fuzzing)
+        # Fuzz-stats registries merged across workers (see wake_sol.fuzzing)
         # and (index, nodeid, relpath) for every crash log a worker reported.
         self._fuzz_stats: Dict[str, dict] = {}
         self._crash_logs: List[Tuple[int, str, str]] = []
@@ -113,7 +113,7 @@ class PytestPluginMultiprocessServer:
         # Explicit fork context: the worker plugin instance, its Connection, and
         # the Queue are live objects passed to the child — they are inherited by
         # fork, never pickled. (design doc §3 blocker 5)
-        from solana_fuzzer._mp_worker import PytestPluginMultiprocessWorker
+        from wake_sol._mp_worker import PytestPluginMultiprocessWorker
 
         # Per-worker crash-log dirs, siblings of the testing logs. Not wiped — a
         # crash log is a durable artifact, and the server only lists the ones a
@@ -341,7 +341,7 @@ class PytestPluginMultiprocessServer:
                     elif kind == "fuzz_test_stats":
                         # Merge this worker's per-flow registry into the aggregate
                         # (additive at the leaves); rendered in the summary.
-                        from solana_fuzzer import fuzzing
+                        from wake_sol import fuzzing
 
                         fuzzing.merge_session_stats(self._fuzz_stats, msg[2])
                     elif kind == "pytest_crashlog_path":
@@ -377,7 +377,7 @@ class PytestPluginMultiprocessServer:
 
     def pytest_terminal_summary(self, terminalreporter, exitstatus, config) -> None:
         self._print_fuzz_stats()
-        terminalreporter.section("solana-fuzzer")
+        terminalreporter.section("wake.sol")
         terminalreporter.write_line(
             f"Ran {self._proc_count} workers, dist={self._dist}. Per-worker seeds:"
         )
@@ -395,14 +395,14 @@ class PytestPluginMultiprocessServer:
         """Render one aggregated flow-stats table per FuzzTest class, merged
         across all workers. Prints nothing when no worker reported fuzz stats.
 
-        Uses ``solana_fuzzer.print`` — the same markup-disabled console as the
+        Uses ``wake_sol.print`` — the same markup-disabled console as the
         single-process per-run table — so the aggregate renders identically and a
         skip reason containing brackets can't be mis-parsed as rich markup.
         """
         if not self._fuzz_stats:
             return
-        import solana_fuzzer as sf
-        from solana_fuzzer import fuzzing
+        import wake_sol as sf
+        from wake_sol import fuzzing
 
         for name in sorted(self._fuzz_stats):
             entry = self._fuzz_stats[name]

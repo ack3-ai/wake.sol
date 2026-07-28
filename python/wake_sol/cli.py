@@ -1,4 +1,4 @@
-"""Command-line interface for solana-fuzzer."""
+"""Command-line interface for wake.sol."""
 
 from __future__ import annotations
 
@@ -10,14 +10,14 @@ import click
 
 @click.group()
 def cli() -> None:
-    """solana-fuzzer — a Solana program testing and fuzzing harness."""
+    """wake.sol — a Solana program testing and fuzzing harness."""
 
 
 def _strip_seed(args: list[str]) -> list[str]:
     """Drop any ``--seed <hex>`` / ``--seed=<hex>`` from passthrough args.
 
     In multi-process mode the CLI owns seeds (``-S``); the server session runs
-    with ``-p no:solana_fuzzer`` so ``--seed`` is not even a registered option
+    with ``-p no:wake_sol`` so ``--seed`` is not even a registered option
     there, and each worker gets its own injected ``--seed``.
     """
     out: list[str] = []
@@ -74,7 +74,7 @@ def test(
 ) -> None:
     """Run tests with pytest.
 
-    The solana_fuzzer pytest plugin (auto-loaded) resets the global SVM and
+    The wake_sol pytest plugin (auto-loaded) resets the global SVM and
     reseeds `random` before each test. Pass `--seed <hex>` for a fixed base
     seed; all arguments are forwarded to pytest.
 
@@ -105,7 +105,7 @@ def test(
 
     import os
 
-    from solana_fuzzer._mp_server import PytestPluginMultiprocessServer
+    from wake_sol._mp_server import PytestPluginMultiprocessServer
 
     if proc_count == -1:
         proc_count = os.cpu_count() or 1
@@ -129,9 +129,9 @@ def test(
     # not register --seed or print a "Base seed" summary. It also runs with -s:
     # pytest's stdin capture otherwise swaps in a non-tty object, so the attach
     # prompt (input() + sys.stdin.isatty()) would never fire on a real terminal.
-    server_args = base_args + ["-p", "no:solana_fuzzer", "-s"]
+    server_args = base_args + ["-p", "no:wake_sol", "-s"]
 
-    logs_dir = Path.cwd() / ".solana-fuzzer" / "logs" / "testing"
+    logs_dir = Path.cwd() / ".wake-sol" / "logs" / "testing"
 
     sys.exit(
         pytest.main(
@@ -186,7 +186,7 @@ def gen(ctx: click.Context, **opts) -> None:
     """Generate the pytypes/ package from Anchor IDLs."""
     ctx.obj = opts
     if ctx.invoked_subcommand is None:
-        from solana_fuzzer._gen import run_gen
+        from wake_sol._gen import run_gen
 
         ctx.exit(run_gen(**opts))
 
@@ -195,7 +195,7 @@ def gen(ctx: click.Context, **opts) -> None:
 @click.pass_context
 def gen_run(ctx: click.Context) -> None:
     """Generate the package (the default action)."""
-    from solana_fuzzer._gen import run_gen
+    from wake_sol._gen import run_gen
 
     ctx.exit(run_gen(**ctx.obj))
 
@@ -204,7 +204,7 @@ def gen_run(ctx: click.Context) -> None:
 @click.pass_context
 def gen_check(ctx: click.Context) -> None:
     """Alias for `gen --check`: regenerate and diff against --out."""
-    from solana_fuzzer._gen import run_gen
+    from wake_sol._gen import run_gen
 
     opts = dict(ctx.obj)
     opts["check"] = True
@@ -215,7 +215,7 @@ def gen_check(ctx: click.Context) -> None:
 @click.pass_context
 def gen_list(ctx: click.Context) -> None:
     """Print the discovered {address: idl_path, source_root} table; no codegen."""
-    from solana_fuzzer._gen.run import _discover
+    from wake_sol._gen.run import _discover
 
     opts = ctx.obj
     discovered = _discover(opts["target_idls"], opts["dep_idls"], opts["verbose"])

@@ -2,15 +2,15 @@
 
 # 14 · Parallel running
 
-`solana-fuzzer test -P N` runs your tests across **N worker processes** at once. There are two reasons to reach for it:
+`wake-sol test -P N` runs your tests across **N worker processes** at once. There are two reasons to reach for it:
 
 - **More fuzzing, same wall clock.** By default every worker runs *every* test, each with its own random seed — so `-P 8` is eight independent fuzzing runs in parallel, eight different seeds exploring eight different sequences. This is the "leave it running overnight" mode.
 - **Faster suites.** With `--dist uniform` the tests are *sharded* across workers instead of duplicated, so a large suite finishes in roughly `1/N` the time.
 
 ```bash
-solana-fuzzer test -P 8 tests/test_fuzz_counter.py     # 8 seeds, same test
-solana-fuzzer test -P 4 --dist uniform tests/          # shard the whole suite
-solana-fuzzer test tests/                              # no -P → single process, as before
+wake-sol test -P 8 tests/test_fuzz_counter.py     # 8 seeds, same test
+wake-sol test -P 4 --dist uniform tests/          # shard the whole suite
+wake-sol test tests/                              # no -P → single process, as before
 ```
 
 ## How it works
@@ -24,7 +24,7 @@ Everything is on the POSIX `fork` start method (the workers inherit the live in-
 Each worker gets its own base seed, so each explores a different sequence. Seeds are printed in the summary, one per worker, with a ready-to-paste reproduce line:
 
 ```
-================================ solana-fuzzer =================================
+=================================== wake.sol ===================================
 Ran 8 workers, dist=duplicated. Per-worker seeds:
   #0: 3d4ad2957d262442   (reproduce: pytest --seed 3d4ad2957d262442)
   #1: a1f0c39b7712de08   (reproduce: pytest --seed a1f0c39b7712de08)
@@ -42,7 +42,7 @@ Reproduction works because per-test seeding is derived — `sha256(base_seed + n
 Pin specific worker seeds with `-S <hex>` (repeatable); any remaining workers get a random seed:
 
 ```bash
-solana-fuzzer test -P 4 -S 3d4ad2957d262442 -S a1f0c39b7712de08 tests/
+wake-sol test -P 4 -S 3d4ad2957d262442 -S a1f0c39b7712de08 tests/
 ```
 
 ## Options
@@ -82,7 +82,7 @@ To reproduce a single failure in isolation instead, take the failing worker's se
 `--attach-first` is the "just let me watch it run" mode. Worker 0's stdout/stderr are *teed* to the console (and still saved to `process-0.ansi`); every other worker redirects to its log as usual. The progress table is turned off (worker 0 owns the console), and no worker ever prompts to attach. It's mutually exclusive with `--attach`.
 
 ```bash
-solana-fuzzer test -P 4 --attach-first tests/test_fuzz_counter.py
+wake-sol test -P 4 --attach-first tests/test_fuzz_counter.py
 ```
 
 ## Output & logs
@@ -92,8 +92,8 @@ The console shows a live progress row per worker in a terminal, and degrades to 
 Each worker's own stdout/stderr is redirected to a per-worker log file so the console stays readable:
 
 ```
-.solana-fuzzer/logs/testing/process-0.ansi
-.solana-fuzzer/logs/testing/process-1.ansi
+.wake-sol/logs/testing/process-0.ansi
+.wake-sol/logs/testing/process-1.ansi
 ...
 ```
 
@@ -119,15 +119,15 @@ The label shows the summed budget — `N sequences` and `N × flows_count` flow-
 When a `FuzzTest` fails, the harness writes a JSON crash log next to the seed-based reproduce line — a convenience artifact you can read, diff, or archive (reproduction is still just the seed). Under `-P` each worker writes into its own directory so filenames never collide:
 
 ```
-.solana-fuzzer/logs/crashes/process-0/20260713_200848_872928_test_smoke_fuzz.py__test_bad.json
+.wake-sol/logs/crashes/process-0/20260713_200848_872928_test_smoke_fuzz.py__test_bad.json
 ```
 
 and the server lists them in its summary:
 
 ```
 Crash logs:
-  #0 test_smoke_fuzz.py::test_bad: .solana-fuzzer/logs/crashes/process-0/2026...json
-  #1 test_smoke_fuzz.py::test_bad: .solana-fuzzer/logs/crashes/process-1/2026...json
+  #0 test_smoke_fuzz.py::test_bad: .wake-sol/logs/crashes/process-0/2026...json
+  #1 test_smoke_fuzz.py::test_bad: .wake-sol/logs/crashes/process-1/2026...json
 ```
 
 Each file records the failing node id, the worker's seed, the `pytest --seed …` reproduce line verbatim, the `FuzzTest` class, the failing sequence/flow index, the failing step (`"flow increment"` / `"invariant counter_matches_model"`), the flow trace, and the exception's type and value. Non-fuzz test failures write nothing. Crash logs are best-effort — a failure to write one never masks the underlying test failure. See [§8 → Crash logs](08-fuzzing.md#crash-logs) for the single-process form.

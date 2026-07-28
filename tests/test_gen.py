@@ -1,4 +1,4 @@
-"""Acceptance tests for ``solana-fuzzer gen`` (§7 / §12.4): generate the
+"""Acceptance tests for ``wake-sol gen`` (§7 / §12.4): generate the
 pytypes package from a hand-authored Anchor IDL, then prove the generated
 modules import, round-trip through the engine, emit byte-identical instruction
 data to the canonical hand-written fixture, and regenerate deterministically
@@ -15,11 +15,11 @@ from pathlib import Path
 import pytest
 
 import fixture_program as fp
-from solana_fuzzer import decode_instruction
-from solana_fuzzer._codec import Mode, Opt, RefuseToDecode, compile_type, decode, encode
-from solana_fuzzer._gen import run_gen
-from solana_fuzzer._gen.run import _build_files, _check, _discover
-from solana_fuzzer._native import Pubkey
+from wake_sol import decode_instruction
+from wake_sol._codec import Mode, Opt, RefuseToDecode, compile_type, decode, encode
+from wake_sol._gen import run_gen
+from wake_sol._gen.run import _build_files, _check, _discover
+from wake_sol._native import Pubkey
 
 FIXTURE_DIR = Path(__file__).parent / "fixtures"
 ADDR = "4Q7CGJjsU5jR3PCVa7sXhCf3qccWq2Hmh1ekAEC8QhS2"
@@ -196,7 +196,7 @@ def test_fixed_address_accounts_default(gen):
 
 
 def test_account_slot_accepts_metalike_forms(gen):
-    from solana_fuzzer._native import Account
+    from wake_sol._native import Account
     user = Account(Pubkey(9))                       # a live Account view
     ix = gen.FixtureProgram.do_swap(1, gen.Side.Bid, user=user, pool=Pubkey(2))
     assert ix.accounts[0].pubkey == Pubkey(9)       # Account coerced to its address
@@ -207,7 +207,7 @@ def test_account_slot_accepts_metalike_forms(gen):
 
 
 def test_wellknown_addresses_are_valid_base58():
-    from solana_fuzzer._gen import wellknown
+    from wake_sol._gen import wellknown
     for name, addr in wellknown.NAME_TO_ADDRESS.items():
         assert Pubkey(addr)                              # raises if malformed
         assert wellknown.resolve(name.upper()) == addr   # normalization
@@ -225,7 +225,7 @@ def test_errors_nested_on_builder(gen):
     assert getattr(prog.PoolPaused, "msg", None) is None
 
     # every one of them under a per-program base, itself a ProgramError
-    from solana_fuzzer import ProgramError
+    from wake_sol import ProgramError
     assert issubclass(prog.SlippageExceeded, prog.Error)
     assert issubclass(prog.PoolPaused, prog.Error)
     assert issubclass(prog.Error, ProgramError)
@@ -242,7 +242,7 @@ def test_error_module_aliases(gen):
 def test_errors_registered_on_the_raise_path(gen):
     """Importing the module ran `register_errors`, so a raw Custom code from
     this program resolves to the specific nested class."""
-    from solana_fuzzer._errors import build
+    from wake_sol._errors import build
     resolved = build(code=6000, program_id=str(gen.PROGRAM_ID))
     assert type(resolved) is gen.FixtureProgram.SlippageExceeded
 
@@ -250,7 +250,7 @@ def test_errors_registered_on_the_raise_path(gen):
 def test_errors_do_not_register_as_instructions(gen):
     """Nesting exception classes on the builder must not confuse the interface
     reflection, which walks the class for `__pytypes_ix__` members."""
-    from solana_fuzzer._codec import build_interface_from_module
+    from wake_sol._codec import build_interface_from_module
     iface = build_interface_from_module(
         gen.__name__, gen.FixtureProgram, gen.PROGRAM_ID, gen.PROGRAM_NAME)
     assert {d.name for d in iface._defs} == {"do_swap", "store", "noop", "init"}

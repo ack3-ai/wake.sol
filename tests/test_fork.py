@@ -13,7 +13,7 @@ import json
 
 import pytest
 
-from solana_fuzzer import Account, LiteSVM, Pubkey
+from wake_sol import Account, LiteSVM, Pubkey
 
 SYSTEM = Pubkey(bytes(32))                  # 32 zero bytes = System program id
 

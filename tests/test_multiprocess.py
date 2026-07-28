@@ -1,8 +1,8 @@
-"""Integration tests for the multiprocess test runner (`solana-fuzzer test -P N`).
+"""Integration tests for the multiprocess test runner (`wake-sol test -P N`).
 
-Each case invokes the CLI in a *subprocess* (`python -m solana_fuzzer.cli test`)
+Each case invokes the CLI in a *subprocess* (`python -m wake_sol.cli test`)
 against a throwaway test file written into ``tmp_path``, so the runner's own
-fork/queue/pipe machinery is exercised end to end and the ``.solana-fuzzer/``
+fork/queue/pipe machinery is exercised end to end and the ``.wake-sol/``
 log tree lands under ``tmp_path`` (never the repo). The plain-pipe cases (`_run`)
 are not a tty, so the server's rich progress degrades to plain per-worker lines
 and every attach prompt auto-declines — CI-safe. The Phase-2 interactive cases
@@ -24,7 +24,7 @@ import pytest
 
 _PTY_UNAVAILABLE = not hasattr(os, "openpty")
 
-_CLI = [sys.executable, "-m", "solana_fuzzer.cli", "test"]
+_CLI = [sys.executable, "-m", "wake_sol.cli", "test"]
 
 # Server summary prints:  "  #0: 0011aabb...   (reproduce: pytest --seed ...)"
 _SEED_RE = re.compile(r"#(\d+): ([0-9a-f]{16})")
@@ -64,7 +64,7 @@ def test_parallel_happy_path(tmp_path):
     assert r.returncode == 0, out
 
     # Both workers actually ran: one log file each.
-    logs = tmp_path / ".solana-fuzzer" / "logs" / "testing"
+    logs = tmp_path / ".wake-sol" / "logs" / "testing"
     assert (logs / "process-0.ansi").exists(), out
     assert (logs / "process-1.ansi").exists(), out
 
@@ -159,7 +159,7 @@ _FAILING = (
 # A test that raises a real TransactionFailed — pyo3 objects that will not
 # pickle, forcing the worker's Exception(repr(e)) fallback.
 _TXFAIL = (
-    "from solana_fuzzer import Account, svm\n\n\n"
+    "from wake_sol import Account, svm\n\n\n"
     "def test_ok():\n    assert True\n\n\n"
     "def test_txfail():\n"
     "    a = Account.new()\n"
@@ -301,7 +301,7 @@ def test_attach_first_tees_worker_zero(tmp_path):
     r = _run(tmp_path, "-P", "2", "--dist", "uniform", "--attach-first", "test_tee.py")
     out = r.stdout + r.stderr
     assert r.returncode == 0, out
-    logs = tmp_path / ".solana-fuzzer" / "logs" / "testing"
+    logs = tmp_path / ".wake-sol" / "logs" / "testing"
     log0 = (logs / "process-0.ansi").read_text()
     log1 = (logs / "process-1.ansi").read_text()
     # Worker 0 tees: its output is live on the console AND in its own log.
@@ -383,7 +383,7 @@ def test_pty_breakpoint_attach_continue(tmp_path):
 # --------------------------------------------------------------------------- #
 
 _FUZZ_PASS = (
-    "from solana_fuzzer import FuzzTest, flow, invariant, random\n\n\n"
+    "from wake_sol import FuzzTest, flow, invariant, random\n\n\n"
     "class ModelFuzz(FuzzTest):\n"
     "    def pre_sequence(self):\n"
     "        self.model = 0\n\n"
@@ -403,7 +403,7 @@ _FUZZ_PASS = (
 # Fails deterministically at sequence 0, flow 1 (model reaches 2 after the second
 # inc, tripping `model < 2`). Trace is ["inc", "inc"], failing = "invariant bounded".
 _FUZZ_FAIL = (
-    "from solana_fuzzer import FuzzTest, flow, invariant\n\n\n"
+    "from wake_sol import FuzzTest, flow, invariant\n\n\n"
     "class BadFuzz(FuzzTest):\n"
     "    def pre_sequence(self):\n"
     "        self.model = 0\n\n"
@@ -453,7 +453,7 @@ def test_parallel_fuzz_failure_crash_logs(tmp_path):
 
     # duplicated dist ⇒ both workers hit the same deterministic failure and each
     # writes a crash log under its own process-N dir; assert at least one exists.
-    crashes = tmp_path / ".solana-fuzzer" / "logs" / "crashes"
+    crashes = tmp_path / ".wake-sol" / "logs" / "crashes"
     files = sorted(crashes.rglob("*.json"))
     assert files, ("no crash logs under " + str(crashes), out)
     assert any("process-" in str(f.parent) for f in files), out
@@ -482,7 +482,7 @@ def test_single_process_fuzz_failure_crash_log(tmp_path):
     assert r.returncode != 0, out
 
     # Single-process crashes land directly under logs/crashes (no process-N dir).
-    crashes = tmp_path / ".solana-fuzzer" / "logs" / "crashes"
+    crashes = tmp_path / ".wake-sol" / "logs" / "crashes"
     files = sorted(crashes.glob("*.json"))
     assert files, ("no crash log under " + str(crashes), out)
     assert "Crash logs:" in r.stdout, out
@@ -498,7 +498,7 @@ def test_single_process_pass_writes_no_crash_log(tmp_path):
     r = _run(tmp_path, "test_fuzz.py")  # no -P → single-process
     out = r.stdout + r.stderr
     assert r.returncode == 0, out
-    crashes = tmp_path / ".solana-fuzzer" / "logs" / "crashes"
+    crashes = tmp_path / ".wake-sol" / "logs" / "crashes"
     # A passing run never touches the crashes tree.
     assert not crashes.exists() or not list(crashes.rglob("*.json")), out
     assert "Crash logs:" not in r.stdout, out
@@ -511,7 +511,7 @@ def test_nonfuzz_failure_writes_no_crash_log(tmp_path):
     r = _run(tmp_path, "test_plain.py")  # single-process
     out = r.stdout + r.stderr
     assert r.returncode != 0, out
-    crashes = tmp_path / ".solana-fuzzer" / "logs" / "crashes"
+    crashes = tmp_path / ".wake-sol" / "logs" / "crashes"
     assert not crashes.exists() or not list(crashes.rglob("*.json")), out
     assert "Crash logs:" not in r.stdout, out
 
@@ -521,7 +521,7 @@ def test_report_serialization_pickle_and_json_fallback():
     # genuinely unpicklable longrepr through the real runner isn't required; here
     # an unpicklable extra attribute forces the JSON fallback (pickle sees the
     # whole __dict__; _to_json only reads the known fields, so it still succeeds).
-    from solana_fuzzer._mp_serial import (
+    from wake_sol._mp_serial import (
         REPORT_JSON,
         REPORT_PICKLE,
         dump_report,

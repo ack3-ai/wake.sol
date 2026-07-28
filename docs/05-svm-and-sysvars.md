@@ -5,7 +5,7 @@
 `svm` is the process-global [`LiteSVM`](https://github.com/LiteSVM/litesvm) instance. Make independent chains with `LiteSVM()` and bind accounts to them with `Account(addr, svm=other)`.
 
 ```python
-from solana_fuzzer import svm, LiteSVM
+from wake_sol import svm, LiteSVM
 chain_b = LiteSVM()                  # separate state
 chain_b = LiteSVM(sigverify=False, blockhash_check=False)
 ```
@@ -45,7 +45,7 @@ If you want per-signature uniqueness *without* the dedup papercut, keep history 
 The runtime starts from **mainnet-beta's feature set** (a pinned snapshot), so behavior matches mainnet out of the box. You can query and flip individual feature-gate pubkeys:
 
 ```python
-from solana_fuzzer import LiteSVM, Pubkey
+from wake_sol import LiteSVM, Pubkey
 
 PICO_INFLATION = Pubkey("4RWNif6C2WCNiKVW7otP4G7dkmkHGyKQWRpuZ1pxKU5m")
 
@@ -142,4 +142,4 @@ svm.epoch_rewards        # EpochRewards(distribution_starting_block_height, num_
 svm.slot_hashes          # list[tuple[int, bytes]] — [(slot, hash_bytes), …], newest first
 ```
 
-> The sysvar value objects (`Clock`, `Rent`, `EpochSchedule`, `EpochRewards`) are importable from `solana_fuzzer` for type annotations. `StakeHistory` isn't currently wrapped.
+> The sysvar value objects (`Clock`, `Rent`, `EpochSchedule`, `EpochRewards`) are importable from `wake_sol` for type annotations. `StakeHistory` isn't currently wrapped.

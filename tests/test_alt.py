@@ -1,5 +1,5 @@
 """Address Lookup Table support: the god-mode cheatcode + the official builders."""
-from solana_fuzzer import Account, LiteSVM, Pubkey
+from wake_sol import Account, LiteSVM, Pubkey
 
 ALT_PROGRAM = Pubkey("AddressLookupTab1e1111111111111111111111111")
 

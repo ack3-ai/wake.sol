@@ -89,7 +89,7 @@ The full, raw, tx-wide log list is always on `res.logs`.
 The decode that powers the trace is also available directly:
 
 ```python
-from solana_fuzzer import decode_instruction
+from wake_sol import decode_instruction
 dec = decode_instruction(program_id, instruction_data, n_accounts)
 dec.name           # instruction name, or None if undecodable
 dec.args           # {arg_name: value}

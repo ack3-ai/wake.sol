@@ -1,11 +1,11 @@
-# solana-fuzzer — Harness Guide
+# wake.sol — Harness Guide
 
 A Python testing/fuzzing harness for Solana programs, backed by [litesvm](https://github.com/LiteSVM/litesvm) through a Rust/pyo3 extension. You drive a fast in-process SVM from Python: fund accounts, build & send (or simulate) transactions, and inspect a decoded call trace — with typed instruction builders generated from Anchor IDLs.
 
-This guide covers the **runtime harness API**. For the IDL → Python *generator* (`solana-fuzzer gen`), see the design spec under [../design/pytypes-generator-spec/](../design/pytypes-generator-spec/index.md).
+This guide covers the **runtime harness API**. For the IDL → Python *generator* (`wake-sol gen`), see the design spec under [../design/pytypes-generator-spec/](../design/pytypes-generator-spec/index.md).
 
 ```python
-from solana_fuzzer import svm, Account
+from wake_sol import svm, Account
 
 alice, bob = Account.new(), Account.new()
 svm.airdrop(alice, 1_000_000_000)
@@ -29,11 +29,11 @@ assert res.success
 - **[11 · Errors](11-errors.md)** — the raise-by-default contract, the typed `TransactionFailed` hierarchy, `must_revert` / `may_revert`, and registering custom program errors.
 - **[12 · Address Lookup Tables](12-lookup-tables.md)** — the `create_lookup_table` cheatcode, the official ALT-program builders, and v0 transactions via `lookup_tables=`.
 - **[13 · Mainnet forking](13-forking.md)** — `svm.fork(...)`, offline/cache replay, `exclude=` for auditing your own build, and pinning programs (`fork_programs` / `forked_accounts`).
-- **[14 · Parallel running](14-parallel-running.md)** — `solana-fuzzer test -P N`: N workers of the same suite (N seeds) or sharded (`--dist uniform`), per-worker seeds & logs, and aggregated results.
+- **[14 · Parallel running](14-parallel-running.md)** — `wake-sol test -P N`: N workers of the same suite (N seeds) or sharded (`--dist uniform`), per-worker seeds & logs, and aggregated results.
 
 ## Conventions used throughout
 
 - **Instruction builders are classmethods.** `Program.ix(...)` — no instantiation. A builder is a pure function of its arguments: it *builds* an `Instruction` and never reads chain state, so there is nothing for an instance to hold. State-dependent surfaces are the opposite and do hang off the SVM (`svm.clock`, `svm.set_rent(...)` — see [§5](05-svm-and-sysvars.md)), while sysvar and program *addresses* are plain module-level constants (see [§7](07-programs-and-addresses.md)).
 - **Instruction builders are data-first, accounts keyword-only.** Every builder method takes the instruction's data args positionally (in IDL order) and its accounts as keyword-only params: `ix(arg1, arg2, *, account_a, account_b=None, remaining_accounts=())`. This holds for the built-ins (`svm.system`, `svm.token`) and for every generated program.
 - **Addresses are `MetaLike`.** Anywhere an account is expected you can pass a `Pubkey`, an `Account`, an explicit `AccountMeta`, or a base58 `str` / 32 raw `bytes` / big-endian `int` — the builder coerces it (see [§6](06-types-and-encoding.md)).
-- **One import root.** Almost everything is re-exported from the top-level `solana_fuzzer` package, so `from solana_fuzzer import svm, Account, Pubkey, u64, RENT_SYSVAR, …` works.
+- **One import root.** Almost everything is re-exported from the top-level `wake_sol` package, so `from wake_sol import svm, Account, Pubkey, u64, RENT_SYSVAR, …` works.

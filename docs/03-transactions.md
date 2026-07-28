@@ -60,7 +60,7 @@ res = payer.tx(svm.system.create_account(rent, 0, owner, from_=payer, to=new_acc
 Account params accept a `Pubkey`, an `Account`, an explicit `AccountMeta`, or an address-like `str`/`bytes`/`int`. A bare address gets the instruction's IDL-declared signer/writable flags; pass an explicit `AccountMeta` to override them (a flag mismatch emits a suppressible `AccountFlagOverride` warning — a deliberate fuzzing hook):
 
 ```python
-from solana_fuzzer import AccountMeta, signer, writable, readonly, writable_signer
+from wake_sol import AccountMeta, signer, writable, readonly, writable_signer
 svm.system.transfer(1, from_=writable_signer(alice), to=bob)   # explicit privileges
 ```
 

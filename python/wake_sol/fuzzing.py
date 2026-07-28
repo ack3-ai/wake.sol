@@ -7,13 +7,13 @@ actions with :func:`flow` and property checks with :func:`invariant`, then call
 Each *sequence* is an independent run of up to ``flows_count`` randomly-chosen
 flows against a freshly-reset SVM; invariants are checked between flows. All
 randomness — flow choice here, plus whatever a flow draws — comes from the one
-process-global ``solana_fuzzer.random`` (keypairs included, see
+process-global ``wake_sol.random`` (keypairs included, see
 ``Account.new``), which the pytest plugin reseeds per test. So a failure
 reproduces from the base ``--seed`` alone.
 
 Deliberately *not* ported from wake (feat/version-5.0.0 `wake/testing/fuzzing`):
 shrinking and type-driven parameter generation. Flows take no generated
-arguments — a flow draws whatever it needs from ``solana_fuzzer.random`` in its
+arguments — a flow draws whatever it needs from ``wake_sol.random`` in its
 own body.
 """
 
@@ -70,7 +70,7 @@ class FuzzTest:
 
     The engine keeps a single instance across all sequences, so ``pre_sequence``
     is where you rebuild per-sequence state — redeploy your program, fund
-    accounts, and reset any Python model state — since ``solana_fuzzer.svm`` is
+    accounts, and reset any Python model state — since ``wake_sol.svm`` is
     wiped to genesis before each sequence.
     """
 
@@ -138,8 +138,8 @@ def _methods_with(cls: type, attr: str) -> List[Callable]:
 
 def _run(cls: type, sequences_count: int, flows_count: int, transaction_history: bool) -> None:
     # Imported here (not at module load) to avoid a circular import: the
-    # `solana_fuzzer` package imports this module to re-export FuzzTest.
-    import solana_fuzzer as sf
+    # `wake_sol` package imports this module to re-export FuzzTest.
+    import wake_sol as sf
 
     # Clear any prior failure context so a passing run — or a non-fuzz test that
     # fails later in the same process — never inherits a stale one. The pytest
@@ -234,7 +234,7 @@ def _run(cls: type, sequences_count: int, flows_count: int, transaction_history:
             # line and (with --attach) drops into ipdb.
             # Nothing is printed here. The failing step, the flow-stats table and
             # the reproduce line are all rendered by the pytest plugin in its
-            # own `solana-fuzzer` report section, so they are not buried in
+            # own `wake.sol` report section, so they are not buried in
             # pytest's "captured stdout" block. The full flow trace goes to the
             # crash-log JSON only — at realistic `flows_count` it is thousands of
             # entries and unreadable on a terminal.
@@ -294,9 +294,9 @@ def build_stats_table(title: Optional[str], flows_stats: dict):
 # Session-level bookkeeping. Accumulates per-FuzzTest-class stats across every
 # ``_run`` in the session. Two consumers:
 #
-# * single-process — the pytest plugin renders it in its ``solana-fuzzer``
+# * single-process — the pytest plugin renders it in its ``wake.sol``
 #   terminal-summary section (``_pytest_plugin.pytest_terminal_summary``);
-# * ``solana-fuzzer test -P N`` — each worker ships its registry to the server,
+# * ``wake-sol test -P N`` — each worker ships its registry to the server,
 #   which merges N registries and renders one aggregated table.
 #
 # ``_run`` itself prints nothing, so none of this lands in pytest's captured

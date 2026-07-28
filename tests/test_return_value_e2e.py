@@ -17,8 +17,8 @@ from pathlib import Path
 
 import pytest
 
-from solana_fuzzer import Account, Instruction, LiteSVM, Pubkey, u64
-from solana_fuzzer._gen import run_gen
+from wake_sol import Account, Instruction, LiteSVM, Pubkey, u64
+from wake_sol._gen import run_gen
 
 SO = Path(__file__).parent.parent / "programs/native-adder/target/deploy/native_adder.so"
 PROGRAM_ID = Pubkey(bytes([0xAD] * 32))

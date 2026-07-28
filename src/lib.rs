@@ -44,7 +44,7 @@ pub(crate) fn to_py_err<E: std::fmt::Debug>(e: E) -> PyErr {
     PyRuntimeError::new_err(format!("{:?}", e))
 }
 
-#[pyclass(name = "Pubkey", module = "solana_fuzzer._native", frozen, from_py_object)]
+#[pyclass(name = "Pubkey", module = "wake_sol._native", frozen, from_py_object)]
 #[derive(Clone)]
 pub(crate) struct PyPubkey {
     pub(crate) inner: Address,
@@ -219,9 +219,9 @@ fn extract_error(err: &TransactionError, tree: &[trace::Traced]) -> StructuredEr
 }
 
 /// Build the specific `TransactionFailed` subclass instance from raw fields by
-/// calling `solana_fuzzer._errors.build(...)`. The `.tx` link is set by the caller.
+/// calling `wake_sol._errors.build(...)`. The `.tx` link is set by the caller.
 fn build_exception<'py>(py: Python<'py>, e: &StructuredErr) -> PyResult<Bound<'py, PyAny>> {
-    py.import("solana_fuzzer._errors")?.getattr("build")?.call1((
+    py.import("wake_sol._errors")?.getattr("build")?.call1((
         e.code,
         e.native.clone(),
         e.instruction_index,
@@ -245,7 +245,7 @@ pub(crate) fn deliver(py: Python<'_>, res: PyTxResult) -> PyResult<Py<PyTxResult
     Ok(py_res)
 }
 
-#[pyclass(name = "TransactionResult", module = "solana_fuzzer._native")]
+#[pyclass(name = "TransactionResult", module = "wake_sol._native")]
 pub(crate) struct PyTxResult {
     success: bool,
     signature: Option<Signature>,
@@ -351,7 +351,7 @@ impl PyTxResult {
             None => py.None().into_bound(py),
         };
         let val = py
-            .import("solana_fuzzer._interface")?
+            .import("wake_sol._interface")?
             .getattr("decode_return_value")?
             .call1((pid.to_string(), ix_arg, PyBytes::new(py, raw)))?;
         Ok(Some(val))
@@ -369,7 +369,7 @@ impl PyTxResult {
             Some(d) => PyBytes::new(py, d).into_any(),
             None => py.None().into_bound(py),
         };
-        py.import("solana_fuzzer._interface")?
+        py.import("wake_sol._interface")?
             .getattr("decode_return_as")?
             .call1((ty, raw))
     }
@@ -464,7 +464,7 @@ fn apply_feature_set(svm: InnerLiteSVM, feature_set: FeatureSet) -> InnerLiteSVM
 // any *read* from another thread abort the process with a PyO3 thread-check panic —
 // including introspection by ipdb/IPython tab-completion, which prompt_toolkit runs
 // on a background thread via `ThreadedCompleter`. See tests/test_thread_access.py.
-#[pyclass(name = "LiteSVM", module = "solana_fuzzer._native")]
+#[pyclass(name = "LiteSVM", module = "wake_sol._native")]
 pub(crate) struct PyLiteSVM {
     pub(crate) inner: InnerLiteSVM,
     pub(crate) sigverify: bool,
@@ -532,7 +532,7 @@ impl PyLiteSVM {
     }
 
     /// Builder namespace for System Program instructions (Python builder in
-    /// `solana_fuzzer._programs.system`).
+    /// `wake_sol._programs.system`).
     ///
     /// Returns the `System` **class**, not an instance: its builders are
     /// classmethods and pure functions of their arguments — they only *build* an
@@ -543,16 +543,16 @@ impl PyLiteSVM {
     #[getter]
     fn system(slf: Bound<'_, PyLiteSVM>) -> PyResult<Py<PyAny>> {
         let py = slf.py();
-        let module = py.import("solana_fuzzer._programs.system")?;
+        let module = py.import("wake_sol._programs.system")?;
         Ok(module.getattr("System")?.unbind())
     }
 
     /// Builder namespace for SPL Token instructions (Python builder in
-    /// `solana_fuzzer._programs.token`). Returns the class — see `system`.
+    /// `wake_sol._programs.token`). Returns the class — see `system`.
     #[getter]
     fn token(slf: Bound<'_, PyLiteSVM>) -> PyResult<Py<PyAny>> {
         let py = slf.py();
-        let module = py.import("solana_fuzzer._programs.token")?;
+        let module = py.import("wake_sol._programs.token")?;
         Ok(module.getattr("Token")?.unbind())
     }
 
@@ -1264,7 +1264,7 @@ pub(crate) fn tx_result_from(
     }
 }
 
-// Fork-safety invariant (multiprocess runner, `solana-fuzzer test -P N`; see
+// Fork-safety invariant (multiprocess runner, `wake-sol test -P N`; see
 // design/multiprocess-runner.md §3 blocker 2): the server forks N worker
 // processes with this global SVM already live in memory. That is fine — account
 // state is per-fork and each worker calls `svm.reset()` before its first test —

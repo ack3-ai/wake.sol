@@ -4,7 +4,7 @@
 Keys are **not** Solana accounts — the verifier identity is a 33-byte compressed
 public key::
 
-    k = secp256r1.Key.new()          # seeded from solana_fuzzer.random (reproducible)
+    k = secp256r1.Key.new()          # seeded from wake_sol.random (reproducible)
     ix = secp256r1.verify(k.sign(b"authorize"))
     payer.tx(ix)
 
@@ -58,11 +58,11 @@ class Key:
 
     @staticmethod
     def new() -> "Key":
-        """A fresh key, seeded from ``solana_fuzzer.random`` (reproducible from
+        """A fresh key, seeded from ``wake_sol.random`` (reproducible from
         ``--seed``, like ``Account.new()``)."""
-        import solana_fuzzer
+        import wake_sol
 
-        seed = bytes(solana_fuzzer.random.randbytes(32))
+        seed = bytes(wake_sol.random.randbytes(32))
         return Key(_secret_from_seed(seed))
 
     @staticmethod

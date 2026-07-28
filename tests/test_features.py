@@ -5,7 +5,7 @@ default is mainnet parity. `activate=`/`deactivate=` flip features on top; the
 `activate_features`/`deactivate_features` cheatcodes change them on a live SVM
 while preserving account state.
 """
-from solana_fuzzer import Account, LiteSVM, Pubkey
+from wake_sol import Account, LiteSVM, Pubkey
 
 # Two long-active mainnet features (ids from agave-feature-set), safe to assume
 # active in any mainnet snapshot.

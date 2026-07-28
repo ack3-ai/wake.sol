@@ -68,10 +68,10 @@ A code no catalog claims (and that isn't in the Anchor range) resolves to `Unkno
 
 ## `must_revert` / `may_revert`
 
-For the common "this *should* fail" assertion, use the context managers (importable from `solana_fuzzer`) instead of a bare `pytest.raises`. `must_revert` **requires** a matching revert; `may_revert` **allows** success. Both expose the captured exception as `.value`:
+For the common "this *should* fail" assertion, use the context managers (importable from `wake_sol`) instead of a bare `pytest.raises`. `must_revert` **requires** a matching revert; `may_revert` **allows** success. Both expose the captured exception as `.value`:
 
 ```python
-from solana_fuzzer import must_revert, may_revert, SystemProgramError
+from wake_sol import must_revert, may_revert, SystemProgramError
 
 # must fail, with this specific error
 with must_revert(SystemProgramError.ResultWithNegativeLamports) as e:
@@ -151,7 +151,7 @@ asserts that a revert happened at all, which a post-hoc `==` cannot.
 To register a hand-written error family (no IDL), subclass `ProgramError` and call `register_errors`:
 
 ```python
-from solana_fuzzer import ProgramError, register_errors
+from wake_sol import ProgramError, register_errors
 
 class MyProgError(ProgramError): ...
 class DoomViolated(MyProgError):

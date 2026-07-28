@@ -37,7 +37,7 @@ r.public_key                  # -> bytes(33)
 smr = r.sign(b"authorize")    # SHA-256, low-S normalized
 ```
 
-`Key.new()` seeds from `solana_fuzzer.random`, so keys are **reproducible from the
+`Key.new()` seeds from `wake_sol.random`, so keys are **reproducible from the
 `--seed`** just like `Account.new()` ([§8](08-fuzzing.md)). `Key.from_secret(bytes)`
 reconstructs a known key.
 
@@ -92,7 +92,7 @@ A `Ref` whose bytes aren't found — or that names an instruction not in the
 transaction — is refused at build time (refuse, don't guess).
 
 The default placement — bytes stored inline in the precompile instruction — is the
-`Inline` marker (also importable from `solana_fuzzer`). You rarely write it, since
+`Inline` marker (also importable from `wake_sol`). You rarely write it, since
 it's the default for every component, but it's the explicit counterpart to `Ref`
 when repointing only *some* components: `sm.at(message=Ref(prog_ix), signature=Inline())`.
 
@@ -111,7 +111,7 @@ out-of-range offsets — each module has `pack(count, entries, data)` that write
 `[count] + entries + data` verbatim with **no validation**:
 
 ```python
-from solana_fuzzer import Offsets
+from wake_sol import Offsets
 ed25519.pack(0, [])                                  # a valid "verify nothing"
 ed25519.pack(3, [Offsets(signature_offset=16, identity_offset=48,
                          message_offset=112, message_size=99999)],  # count/entry & size lies
@@ -123,7 +123,7 @@ ed25519.pack(3, [Offsets(signature_offset=16, identity_offset=48,
 The precompile program IDs are importable constants:
 
 ```python
-from solana_fuzzer import ED25519_PROGRAM_ID, SECP256K1_PROGRAM_ID, SECP256R1_PROGRAM_ID
+from wake_sol import ED25519_PROGRAM_ID, SECP256K1_PROGRAM_ID, SECP256R1_PROGRAM_ID
 ```
 
 They render by name in call traces (`Ed25519 Program::verify(signatures=1)`).

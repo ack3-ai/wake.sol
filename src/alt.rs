@@ -56,7 +56,7 @@ pub(crate) fn read_table_addresses(data: &[u8]) -> PyResult<Vec<Address>> {
 
 /// Builder namespace for the official ALT-program instructions, reached via
 /// `svm.address_lookup_table`.
-#[pyclass(name = "AddressLookupTable", module = "solana_fuzzer._native")]
+#[pyclass(name = "AddressLookupTable", module = "wake_sol._native")]
 pub struct PyAltBuilder {
     svm: Py<PyLiteSVM>,
 }

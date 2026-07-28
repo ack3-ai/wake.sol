@@ -1,8 +1,8 @@
 """Worker-side pytest plugin for the multiprocess test runner.
 
 Each worker is a *full, independent* pytest session forked from the server (see
-:mod:`solana_fuzzer._mp_server`). It runs with the auto-loaded entry-point
-plugin (:mod:`solana_fuzzer._pytest_plugin`) — so per-test SVM reset and the
+:mod:`wake_sol._mp_server`). It runs with the auto-loaded entry-point
+plugin (:mod:`wake_sol._pytest_plugin`) — so per-test SVM reset and the
 ``sha256(seed + nodeid)`` seeding keep working unchanged — plus one instance of
 this plugin, injected by the server with the worker's index, its end of a
 ``Pipe``, the shared results ``Queue``, its base seed, and the two debugger
@@ -11,7 +11,7 @@ flags (``attach`` / ``tee``).
 What this plugin does, in lifecycle order:
 
 * ``pytest_configure`` redirects the worker's stdout+stderr into
-  ``.solana-fuzzer/logs/testing/process-<N>.ansi`` (the server wipes that dir at
+  ``.wake-sol/logs/testing/process-<N>.ansi`` (the server wipes that dir at
   session start). Workers run with ``-s``, so capture is off and the redirect
   catches everything. Under ``--attach-first`` worker 0 *tees* to console + log
   (``StdoutTee``/``StderrTee``) instead, so its output stays live on the console.
@@ -73,7 +73,7 @@ from typing import List, Optional, Type
 import pytest
 from pytest import Session
 
-from solana_fuzzer._mp_serial import dump_report
+from wake_sol._mp_serial import dump_report
 
 
 class PytestPluginMultiprocessWorker:
@@ -119,7 +119,7 @@ class PytestPluginMultiprocessWorker:
         # redirect reuses the still-open self._f, so re-entering after a debugger
         # session never truncates the log.
         if self._tee:
-            from solana_fuzzer._tee import StderrTee, StdoutTee
+            from wake_sol._tee import StderrTee, StdoutTee
 
             self._ctx_managers.append(StdoutTee(self._log_file))
             self._ctx_managers.append(StderrTee(self._log_file))
@@ -176,7 +176,7 @@ class PytestPluginMultiprocessWorker:
         the traceback to the server and blocks for its attach decision; on accept
         runs the ipdb post-mortem here. The ``finally`` always acks the server.
         """
-        from solana_fuzzer import _debug
+        from wake_sol import _debug
 
         # After a keyboard interrupt the failure is interrupt noise; don't debug.
         if self._keyboard_interrupt:
@@ -218,7 +218,7 @@ class PytestPluginMultiprocessWorker:
         non-attach branch sends it inline; the attach branch relies on the pdb
         exit commands *and* an atexit fallback), so the server never deadlocks.
         """
-        from solana_fuzzer import _debug
+        from wake_sol import _debug
 
         self._cleanup_stdio()
         caller = inspect.currentframe().f_back
@@ -296,14 +296,14 @@ class PytestPluginMultiprocessWorker:
 
         # --attach: install the routing handler the entry-point plugin consults.
         if self._attach:
-            from solana_fuzzer import _debug
+            from wake_sol import _debug
 
             _debug.set_exception_handler(self._exception_handler)
 
         # Point crash-log writing at this worker's dir and forward written paths
         # to the server. The entry-point plugin's pytest_exception_interact does
         # the writing; these seams are unconditional (not gated on --attach).
-        from solana_fuzzer import _pytest_plugin
+        from wake_sol import _pytest_plugin
 
         _pytest_plugin.set_crash_dir(self._crash_dir)
         _pytest_plugin.set_crash_log_sink(self._crashlog_sink)
@@ -329,7 +329,7 @@ class PytestPluginMultiprocessWorker:
             # NO `return` here: a return in finally would swallow the
             # session.Failed / session.Interrupted that must propagate so the
             # worker exits nonzero (wake quirk #3).
-            from solana_fuzzer import fuzzing
+            from wake_sol import fuzzing
 
             self._queue.put(("fuzz_test_stats", self._index, fuzzing.get_session_stats()))
 

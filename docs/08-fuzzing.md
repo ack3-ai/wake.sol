@@ -5,7 +5,7 @@
 The harness has a small **stateful fuzzing** engine: you declare *actions* (`@flow`) and *properties* (`@invariant`) on a `FuzzTest` subclass, and the engine drives your program with long randomized sequences of actions, checking the properties after every step. When a property breaks — or a flow raises — it stops and hands you a reproducible failure.
 
 ```python
-from solana_fuzzer import FuzzTest, flow, invariant
+from wake_sol import FuzzTest, flow, invariant
 ```
 
 The model:
@@ -14,7 +14,7 @@ The model:
 - An **invariant** is a property that must always hold (usually: on-chain state matches a Python model you maintain). It's checked between flows and should raise on violation.
 - A **sequence** is one run of up to `flows_count` flows against a freshly-reset SVM. `run()` executes `sequences_count` of them.
 
-All randomness — flow selection *and* whatever a flow draws — comes from the one process-global `solana_fuzzer.random`, which the pytest plugin reseeds per test, so any failure reproduces from the base `--seed` alone.
+All randomness — flow selection *and* whatever a flow draws — comes from the one process-global `wake_sol.random`, which the pytest plugin reseeds per test, so any failure reproduces from the base `--seed` alone.
 
 ## A complete example
 
@@ -22,7 +22,7 @@ Fuzzing the `native-counter` program (increments a program-owned `u64`). The ful
 
 ```python
 from pathlib import Path
-from solana_fuzzer import Account, FuzzTest, Instruction, Pubkey, flow, invariant, random, svm, writable
+from wake_sol import Account, FuzzTest, Instruction, Pubkey, flow, invariant, random, svm, writable
 
 SO = Path(__file__).parent.parent / "programs/native-counter/target/deploy/native_counter.so"
 PROGRAM_ID = Pubkey(bytes([0xC0] * 32))
@@ -64,7 +64,7 @@ Run it with `pytest tests/test_fuzz_counter.py` (add `-s` to see the flow-stats 
 
 ## Flows
 
-`@flow` marks a method the engine may pick each step. It takes only `self` — there is **no** generated-argument magic; a flow draws whatever it needs from `solana_fuzzer.random` in its own body.
+`@flow` marks a method the engine may pick each step. It takes only `self` — there is **no** generated-argument magic; a flow draws whatever it needs from `wake_sol.random` in its own body.
 
 ```python
 @flow(weight=100, max_times=None, precondition=None)
@@ -138,10 +138,10 @@ Call it from inside an ordinary pytest test, so the plugin's per-test reset, see
 
 ## Randomness & reproducibility
 
-There is one RNG: `solana_fuzzer.random` (a `random.Random`). Flow selection, your in-flow draws, and even `Account.new()`'s keypair generation all pull from it. The pytest plugin reseeds it before every test as `sha256(base_seed + nodeid)`, so a single test reproduces regardless of run order or selection.
+There is one RNG: `wake_sol.random` (a `random.Random`). Flow selection, your in-flow draws, and even `Account.new()`'s keypair generation all pull from it. The pytest plugin reseeds it before every test as `sha256(base_seed + nodeid)`, so a single test reproduces regardless of run order or selection.
 
 ```python
-import solana_fuzzer as sf
+import wake_sol as sf
 sf.random.randint(0, 100)      # use this, not the stdlib `random`, in flows
 acct = sf.Account.new()        # keypair derived from the RNG → reproducible from the seed
 ```
@@ -152,11 +152,11 @@ The base seed is printed in the test summary. To replay a failing run exactly:
 pytest --seed <hex> "tests/test_fuzz_counter.py::test_fuzz_counter"
 ```
 
-> **Determinism is your responsibility inside flows.** Anything that pulls entropy from outside the seeded RNG — `time`, `os.urandom`, an unseeded `Keypair`, wall-clock — breaks reproducibility. Draw from `solana_fuzzer.random` and control time with `svm.warp_to_slot` / `svm.warp_to_timestamp` (§5).
+> **Determinism is your responsibility inside flows.** Anything that pulls entropy from outside the seeded RNG — `time`, `os.urandom`, an unseeded `Keypair`, wall-clock — breaks reproducibility. Draw from `wake_sol.random` and control time with `svm.warp_to_slot` / `svm.warp_to_timestamp` (§5).
 
 ## Reading the output
 
-Every run reports a per-flow **stats table** and flags dead flows, in the `solana-fuzzer` section of pytest's summary — so it is always visible, pass or fail, with no `-s` needed:
+Every run reports a per-flow **stats table** and flags dead flows, in the `wake.sol` section of pytest's summary — so it is always visible, pass or fail, with no `-s` needed:
 
 ```
 ┏━━━━━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━┳━━━━━━━━━┳━━━━━━━━━━━━━━┓
@@ -181,7 +181,7 @@ Re-run with `pytest --seed <hex>` (add the test's node id to run only it) to rep
 
 ## Crash logs
 
-A `FuzzTest` failure also writes a JSON crash log under `.solana-fuzzer/logs/crashes/`, listed in the test summary as `Crash logs:`. It's a convenience artifact for reading, diffing, or archiving — reproduction is still just the seed. Each file records:
+A `FuzzTest` failure also writes a JSON crash log under `.wake-sol/logs/crashes/`, listed in the test summary as `Crash logs:`. It's a convenience artifact for reading, diffing, or archiving — reproduction is still just the seed. Each file records:
 
 ```json
 {
@@ -197,13 +197,13 @@ A `FuzzTest` failure also writes a JSON crash log under `.solana-fuzzer/logs/cra
 }
 ```
 
-The `reproduce` line is copy-paste ready. Only `FuzzTest` failures produce a crash log; ordinary test failures don't. Writing is best-effort — if the log can't be written it's skipped silently, never masking the real failure. Under `solana-fuzzer test -P N` each worker writes into its own `crashes/process-<N>/` directory and the server lists them all (see [§14 → Crash logs](14-parallel-running.md#crash-logs)).
+The `reproduce` line is copy-paste ready. Only `FuzzTest` failures produce a crash log; ordinary test failures don't. Writing is best-effort — if the log can't be written it's skipped silently, never masking the real failure. Under `wake-sol test -P N` each worker writes into its own `crashes/process-<N>/` directory and the server lists them all (see [§14 → Crash logs](14-parallel-running.md#crash-logs)).
 
 ## Notes & limits
 
-- **Failed transactions raise.** `tx()` raises `TransactionFailed` on error, so an unexpected failure propagates and is reported as a found bug. For a flow that *expects* a failure (negative testing), catch it locally with `may_revert` / `must_revert` (from `solana_fuzzer`) — see [§11](11-errors.md).
+- **Failed transactions raise.** `tx()` raises `TransactionFailed` on error, so an unexpected failure propagates and is reported as a found bug. For a flow that *expects* a failure (negative testing), catch it locally with `may_revert` / `must_revert` (from `wake_sol`) — see [§11](11-errors.md).
 - **The fuzzer is random, not coverage-guided.** Selection is weighted-random; there's no feedback loop steering it toward new code. Use `weight`, `precondition`, and the stats table to make sure the interesting flows actually run.
-- **Run many seeds at once.** `solana-fuzzer test -P N` launches N independent workers, each a full run with its own seed — the "N seeds overnight" use case. See [§14 Parallel running](14-parallel-running.md).
+- **Run many seeds at once.** `wake-sol test -P N` launches N independent workers, each a full run with its own seed — the "N seeds overnight" use case. See [§14 Parallel running](14-parallel-running.md).
 - **Not (yet) here:** shrinking of a failing sequence. A failure is reproduced from its seed + flow trace, not minimized.
 
 ## Where to go next

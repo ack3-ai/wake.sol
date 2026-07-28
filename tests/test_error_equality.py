@@ -7,8 +7,8 @@ base (`TokenError`), itself under the `ProgramError` category. Generated
 `pytypes` errors have the same shape (see `test_gen.py`), so they compare
 identically.
 """
-from solana_fuzzer import ProgramError, TokenError
-from solana_fuzzer._errors_base import TransactionFailed
+from wake_sol import ProgramError, TokenError
+from wake_sol._errors_base import TransactionFailed
 
 
 def test_instance_and_class_forms():

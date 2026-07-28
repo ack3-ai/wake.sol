@@ -28,7 +28,7 @@ assert res.return_value is None and res.raw_return_value is None
 When there's no attribution to lean on (a low-level / multi-instruction path), or you just want to name the type yourself, use `decode_return(ty)`. It's strict — no heuristic — and takes any annotation the codec accepts (a width alias, a generated struct/enum, `Optional[...]`, `list[...]`, …):
 
 ```python
-from solana_fuzzer import u64
+from wake_sol import u64
 res.decode_return(u64)          # -> 42
 ```
 
@@ -36,7 +36,7 @@ res.decode_return(u64)          # -> 42
 
 ### When decoding raises: `ReturnDataError`
 
-`return_value` and `decode_return` raise `ReturnDataError` (importable from `solana_fuzzer`) rather than guess, when:
+`return_value` and `decode_return` raise `ReturnDataError` (importable from `wake_sol`) rather than guess, when:
 
 - the setting program has no generated interface,
 - the return data can't be tied to an instruction,
@@ -45,7 +45,7 @@ res.decode_return(u64)          # -> 42
 - or there's no return data at all (for `decode_return`).
 
 ```python
-from solana_fuzzer import ReturnDataError
+from wake_sol import ReturnDataError
 
 try:
     value = res.return_value

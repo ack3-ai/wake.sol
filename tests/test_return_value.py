@@ -15,9 +15,9 @@ import sys
 
 import pytest
 
-from solana_fuzzer import LiteSVM, Pubkey, ReturnDataError, u64
-from solana_fuzzer._gen import run_gen
-from solana_fuzzer._interface import decode_return_value
+from wake_sol import LiteSVM, Pubkey, ReturnDataError, u64
+from wake_sol._gen import run_gen
+from wake_sol._interface import decode_return_value
 
 ADDR = "Ret1111111111111111111111111111111111111111"  # base58, unique to this test
 GET_ANSWER = bytes([1, 2, 3, 4, 5, 6, 7, 8])           # -> returns u64
@@ -121,7 +121,7 @@ def test_unattributable_raises(gen):
 
 # --- explicit decode_return_as (the .decode_return(T) hatch) -------------------
 def test_decode_return_as_explicit(gen):
-    from solana_fuzzer._interface import decode_return_as
+    from wake_sol._interface import decode_return_as
     assert decode_return_as(u64, (7).to_bytes(8, "little")) == 7
     with pytest.raises(ReturnDataError):
         decode_return_as(u64, b"\x01")            # too short

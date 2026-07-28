@@ -1,7 +1,7 @@
 """Pytest plugin: per-test SVM reset and deterministic per-test seeding.
 
 Registered as a ``pytest11`` entry point, so it is active for both plain
-``pytest`` and the ``solana-fuzzer test`` CLI. Before every test it resets the
+``pytest`` and the ``wake-sol test`` CLI. Before every test it resets the
 global SVM and reseeds the global ``random`` with a seed derived from the base
 seed and the test's node id — so any single test reproduces on its own,
 regardless of run order or selection.
@@ -18,8 +18,8 @@ from typing import Callable, List, Optional, Tuple
 
 import pytest
 
-import solana_fuzzer
-from solana_fuzzer import _debug, fuzzing
+import wake_sol
+from wake_sol import _debug, fuzzing
 
 _SEED_KEY: pytest.StashKey[bytes] = pytest.StashKey()
 
@@ -41,7 +41,7 @@ _fuzz_failures: List[dict] = []
 
 def set_crash_dir(path: Optional[Path]) -> None:
     """Point crash-log JSON writing at ``path`` instead of the default
-    ``.solana-fuzzer/logs/crashes``. The multiprocess worker sets this to its
+    ``.wake-sol/logs/crashes``. The multiprocess worker sets this to its
     per-worker ``crashes/process-<N>`` dir so filenames can't collide across
     workers; single-process leaves it unset."""
     global _crash_dir_override
@@ -72,7 +72,7 @@ def pytest_addoption(parser: pytest.Parser) -> None:
     )
 
 
-_ROOTPATH_ADDED = "_solana_fuzzer_rootpath_added"
+_ROOTPATH_ADDED = "_wake_sol_rootpath_added"
 
 
 @pytest.hookimpl(tryfirst=True)
@@ -109,7 +109,7 @@ def _default_breakpoints_to_ipdb(config: pytest.Config) -> None:
     """Make a manual ``breakpoint()`` land in ipdb rather than stock ``pdb``.
 
     In-process we deliberately do not claim ``PYTHONBREAKPOINT`` (it fights
-    pytest's capture — see :mod:`solana_fuzzer._debug`), so ``breakpoint()``
+    pytest's capture — see :mod:`wake_sol._debug`), so ``breakpoint()``
     would otherwise drop you at a bare ``(Pdb)`` prompt while everything else in
     this harness — ``--attach``, the multiprocess runner — hands you ipdb.
 
@@ -154,7 +154,7 @@ def pytest_configure(config: pytest.Config) -> None:
         pass
 
     # Verbose (`-v`) renders unlabeled addresses in full, no `3Ftw…HBaY` ellipsis.
-    solana_fuzzer._labels.set_full_addresses(config.option.verbose > 0)
+    wake_sol._labels.set_full_addresses(config.option.verbose > 0)
 
     # Zero-config auto-import of a top-level generated `pytypes/` package (§9.9):
     # importing it registers every generated program (import side effect). A
@@ -174,7 +174,7 @@ def pytest_runtest_setup(item: pytest.Item) -> None:
     # never inherits a previous fuzz test's context and writes a spurious log.
     fuzzing.clear_last_fuzz_failure()
     base_seed = item.config.stash[_SEED_KEY]
-    svm = solana_fuzzer.svm
+    svm = wake_sol.svm
     # Restore default config, then wipe all accounts — a pristine SVM per test.
     if not svm.sigverify:
         svm.sigverify = True
@@ -184,9 +184,9 @@ def pytest_runtest_setup(item: pytest.Item) -> None:
         svm.transaction_history = True  # reset() keeps it; restore the default
     svm.unfork()   # forking is config that reset() keeps, so drop it explicitly
     svm.reset()    # wipes accounts + sysvars, reverts feature deltas to construction
-    solana_fuzzer._labels.clear_labels()  # drop per-test account labels
+    wake_sol._labels.clear_labels()  # drop per-test account labels
     per_test = hashlib.sha256(base_seed + item.nodeid.encode()).digest()
-    solana_fuzzer.random.seed(per_test)
+    wake_sol.random.seed(per_test)
 
 
 def pytest_exception_interact(node, call, report) -> None:
@@ -244,7 +244,7 @@ def pytest_exception_interact(node, call, report) -> None:
 
 def pytest_terminal_summary(terminalreporter, exitstatus, config: pytest.Config) -> None:
     base_seed = config.stash[_SEED_KEY]
-    terminalreporter.section("solana-fuzzer")
+    terminalreporter.section("wake.sol")
 
     # The flow-stats table(s) and the failing step used to be printed from inside
     # `_run`, which put them in pytest's "captured stdout" block — visible only on
@@ -333,7 +333,7 @@ def _write_fuzz_crash_log(node, call, base_seed: bytes) -> None:
     from datetime import datetime
 
     crash_dir = _crash_dir_override or (
-        Path.cwd() / ".solana-fuzzer" / "logs" / "crashes"
+        Path.cwd() / ".wake-sol" / "logs" / "crashes"
     )
     exc_type = getattr(call.excinfo.type, "__name__", None) or str(call.excinfo.type)
     data = {

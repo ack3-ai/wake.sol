@@ -12,7 +12,7 @@ GIL serializes access and the marker was unnecessary.
 """
 import threading
 
-from solana_fuzzer import Account, svm
+from wake_sol import Account, svm
 
 
 def _in_thread(fn):

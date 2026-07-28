@@ -410,7 +410,7 @@ fn decode_events_py<'py>(
 ) -> PyResult<Bound<'py, PyAny>> {
     let raws: Vec<Bound<'py, PyBytes>> =
         payloads.iter().map(|d| PyBytes::new(py, d)).collect();
-    py.import("solana_fuzzer._interface")?
+    py.import("wake_sol._interface")?
         .getattr("decode_events")?
         .call1((program_id.to_string(), raws))
 }
@@ -502,7 +502,7 @@ pub(crate) fn failing_program(tree: &[Traced], code: u32) -> Option<Address> {
 
 /// One node of a transaction's call tree: a program invocation with its
 /// resolved accounts, data payload, depth, and nested CPIs.
-#[pyclass(name = "TracedInstruction", module = "solana_fuzzer._native", frozen)]
+#[pyclass(name = "TracedInstruction", module = "wake_sol._native", frozen)]
 pub struct PyTracedInstruction {
     node: Traced,
 }
@@ -622,8 +622,8 @@ impl PyTracedInstruction {
 /// A transaction's call trace: the list of top-level instructions (each with
 /// its CPIs) plus the transaction outcome. It is both a sequence over the
 /// top-level `TracedInstruction`s and a `rich`-renderable (its `__rich__` /
-/// `__str__` delegate to the Python renderer in `solana_fuzzer.call_trace`).
-#[pyclass(name = "CallTrace", module = "solana_fuzzer._native", frozen)]
+/// `__str__` delegate to the Python renderer in `wake_sol.call_trace`).
+#[pyclass(name = "CallTrace", module = "wake_sol._native", frozen)]
 pub struct PyCallTrace {
     nodes: Vec<Traced>,
     success: bool,
@@ -687,12 +687,12 @@ impl PyCallTrace {
 
     /// Delegate rich rendering to the Python renderer.
     fn __rich__(slf: Py<Self>, py: Python<'_>) -> PyResult<Py<PyAny>> {
-        let module = py.import("solana_fuzzer.call_trace")?;
+        let module = py.import("wake_sol.call_trace")?;
         Ok(module.call_method1("_rich", (slf,))?.unbind())
     }
 
     fn __str__(slf: Py<Self>, py: Python<'_>) -> PyResult<String> {
-        let module = py.import("solana_fuzzer.call_trace")?;
+        let module = py.import("wake_sol.call_trace")?;
         module.call_method1("_to_str", (slf,))?.extract()
     }
 

@@ -1,4 +1,4 @@
-"""The single canonical runtime engine surface (``solana_fuzzer._codec``).
+"""The single canonical runtime engine surface (``wake_sol._codec``).
 
 Everything generated modules and built-ins need is re-exported here: the
 lowercase width aliases, the carriers, the metadata records + decorators, the

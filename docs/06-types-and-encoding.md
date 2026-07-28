@@ -2,14 +2,14 @@
 
 # 6 · Types & encoding
 
-The Borsh codec and its type vocabulary live in `solana_fuzzer._codec` and are re-exported from the top-level `solana_fuzzer`. Generated `pytypes` modules use exactly these symbols; you use the same ones to define ad-hoc types or encode/decode values in tests.
+The Borsh codec and its type vocabulary live in `wake_sol._codec` and are re-exported from the top-level `wake_sol`. Generated `pytypes` modules use exactly these symbols; you use the same ones to define ad-hoc types or encode/decode values in tests.
 
 ## Width-carrying number aliases
 
 Numbers are typed with width aliases — never bare `int`/`float`, so the codec knows the byte width:
 
 ```python
-from solana_fuzzer import u8, u16, u32, u64, u128, u256, i8, i16, i32, i64, i128, i256, f32, f64, char, pubkey
+from wake_sol import u8, u16, u32, u64, u128, u256, i8, i16, i32, i64, i128, i256, f32, f64, char, pubkey
 ```
 
 (`u256` / `i256` are 256-bit; `char` is a 4-byte Unicode codepoint. These three are **engine extensions**, not emitted by Anchor IDLs — handy when hand-defining a non-Anchor layout.)
@@ -43,7 +43,7 @@ Enums:
 
 ```python
 from enum import IntEnum
-from solana_fuzzer import BorshEnum, variant
+from wake_sol import BorshEnum, variant
 from dataclasses import dataclass
 
 class Side(IntEnum):          # all-unit → IntEnum (value = wire tag)
@@ -67,7 +67,7 @@ Define a struct as a `@dataclass` subclassing `BorshStruct`, and you get ergonom
 
 ```python
 from dataclasses import dataclass
-from solana_fuzzer import BorshStruct, u64, pubkey
+from wake_sol import BorshStruct, u64, pubkey
 
 @dataclass
 class Wallet(BorshStruct):
@@ -85,7 +85,7 @@ For an **account** type (carrying a `__borsh_meta__` with a discriminator), `.en
 When you have an annotation but no `BorshStruct` (e.g. a single field):
 
 ```python
-from solana_fuzzer import encode, decode, Mode, compile_field   # compile_* are engine internals
+from wake_sol import encode, decode, Mode, compile_field   # compile_* are engine internals
 node = compile_field(u64)
 encode(7, node)                       # b'\x07\x00\x00\x00\x00\x00\x00\x00'
 decode(b'\x07...', node, Mode.IX_DATA)

@@ -1,4 +1,4 @@
-"""Type stubs for the native (Rust/pyo3) extension `solana_fuzzer._native`."""
+"""Type stubs for the native (Rust/pyo3) extension `wake_sol._native`."""
 
 from __future__ import annotations
 
@@ -7,9 +7,9 @@ from typing import Generic, TypeAlias, overload
 
 from typing_extensions import TypeVar, deprecated
 
-from solana_fuzzer._codec import u64
-from solana_fuzzer._errors import TransactionFailed
-from solana_fuzzer._precompiles import PrecompileInstruction, SignedMessage
+from wake_sol._codec import u64
+from wake_sol._errors import TransactionFailed
+from wake_sol._precompiles import PrecompileInstruction, SignedMessage
 
 #: The decoded-return-value type carried by `Instruction` / `TransactionResult`.
 #: Covariant (so `Instruction[u64]` is-an `Instruction[object]` — required for the
@@ -168,7 +168,7 @@ class Instruction(Generic[_R_co]):
 class TransactionResult(Generic[_R_co]):
     """Outcome of a transaction. Returned only on **success** — a failed send /
     simulate raises the resolved `TransactionFailed` instead (its `.tx` links back
-    to the failed receipt). See `solana_fuzzer._errors`.
+    to the failed receipt). See `wake_sol._errors`.
 
     Generic in the decoded `return_value` type. You get a precise `_R` only from
     running exactly one instruction that declares an IDL `returns` type (via the
@@ -230,7 +230,7 @@ class TransactionResult(Generic[_R_co]):
 
         Best-effort on the low-level path: the setting program is matched via the
         call trace and the bytes are strictly decoded. Raises `ReturnDataError`
-        (from `solana_fuzzer`) if the program has no generated interface, the
+        (from `wake_sol`) if the program has no generated interface, the
         return data can't be attributed to an instruction, the instruction
         declares no return type, or the bytes don't validate — use
         `raw_return_value` for the bytes, or `decode_return(T)` to name the type."""
@@ -947,7 +947,7 @@ class Account:
     def new(svm: LiteSVM | None = ...) -> Account:
         """Create an account backed by a freshly generated keypair — can sign.
         The keypair is derived from the harness's global RNG
-        (`solana_fuzzer.random`), not OS entropy, so it is reproducible from the
+        (`wake_sol.random`), not OS entropy, so it is reproducible from the
         base `--seed`."""
         ...
 

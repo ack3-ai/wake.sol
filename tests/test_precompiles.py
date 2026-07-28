@@ -10,7 +10,7 @@ import dataclasses
 
 import pytest
 
-from solana_fuzzer import *
+from wake_sol import *
 
 MEMO_PROGRAM = Pubkey("MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr")
 NATIVE_LOADER = Pubkey("NativeLoader1111111111111111111111111111111")

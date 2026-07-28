@@ -10,8 +10,8 @@ from typing import Annotated, Optional, Union
 import pytest
 
 import fixture_program as fp
-from solana_fuzzer import AccountMeta, Pubkey, decode_instruction
-from solana_fuzzer._codec import (
+from wake_sol import AccountMeta, Pubkey, decode_instruction
+from wake_sol._codec import (
     AccountFlagOverride,
     BorshError,
     GenError,
@@ -105,7 +105,7 @@ def test_encode_ix_backcompat_matches_layout():
     # must keep producing the exact bytes of `encode_ix_layout` (precompiled
     # layout, as generated code and the migrated fixture now use). Covers scalar,
     # IntEnum, nested-struct, and zero-arg shapes.
-    from solana_fuzzer._codec import compile_layout, encode_ix, encode_ix_layout
+    from wake_sol._codec import compile_layout, encode_ix, encode_ix_layout
     cases = [
         (fp.DISC_SWAP, [(7, u64), (fp.Side.Ask, fp.Side)]),
         (fp.DISC_STORE, [(_sample_alltypes(), fp.AllTypes)]),
@@ -249,7 +249,7 @@ def test_v9_trailing_bytes_ix_data():
 # gen-time guards — refuse at compile, not at decode
 # --------------------------------------------------------------------------- #
 def test_width_alias_min_max_bits():
-    from solana_fuzzer._codec import i8, i256, u8, u256
+    from wake_sol._codec import i8, i256, u8, u256
     assert (u8.min, u8.max, u8.bits, u8.signed) == (0, 255, 8, False)
     assert (i8.min, i8.max, i8.bits, i8.signed) == (-128, 127, 8, True)
     assert u256.max == 2**256 - 1

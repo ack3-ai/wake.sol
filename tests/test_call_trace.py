@@ -1,6 +1,6 @@
 import pytest
 
-from solana_fuzzer import *
+from wake_sol import *
 
 TOKEN = Pubkey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")
 MINT_LEN = 82
@@ -83,7 +83,7 @@ def test_decode_error_resolves_builtin_and_shows_once():
     # renderer-level: a custom code resolves program-scoped on the originating frame;
     # a parent that only propagated the same code is left to its glyph (shown once).
     from types import SimpleNamespace
-    from solana_fuzzer import call_trace as _ct
+    from wake_sol import call_trace as _ct
 
     system = "11111111111111111111111111111111"
     inner = SimpleNamespace(error="custom program error: 0x0", inner=[], program_id=system)

@@ -69,7 +69,7 @@ def test_project_root_is_on_sys_path(pytester: pytest.Pytester) -> None:
 def test_root_import_fails_without_the_plugin(pytester: pytest.Pytester) -> None:
     """The A/B: proves the pass above is the plugin's doing, not pytest's."""
     root = _downstream_project(pytester)
-    res = _run_bare(root, "-p", "no:solana_fuzzer")
+    res = _run_bare(root, "-p", "no:wake_sol")
     assert res.returncode != 0
     assert "No module named 'pytypes'" in res.stdout
 
@@ -86,7 +86,7 @@ def test_breakpoint_uses_ipdb(pytester: pytest.Pytester) -> None:
 
 
 def test_breakpoint_is_stock_pdb_without_the_plugin(pytester: pytest.Pytester) -> None:
-    res = _run_bare(_bp_project(pytester), "-p", "no:solana_fuzzer", stdin="c\n")
+    res = _run_bare(_bp_project(pytester), "-p", "no:wake_sol", stdin="c\n")
     assert res.returncode == 0, res.stdout + res.stderr
     assert "(Pdb)" in res.stdout and "ipdb>" not in res.stdout
 

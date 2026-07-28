@@ -8,7 +8,7 @@ compiled *and* litesvm resolved the lookup at execution.
 """
 import pytest
 
-from solana_fuzzer import Account, LiteSVM, Pubkey
+from wake_sol import Account, LiteSVM, Pubkey
 
 
 def _svm_with_payer():

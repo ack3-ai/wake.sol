@@ -17,8 +17,8 @@ from pathlib import Path
 
 import pytest
 
-from solana_fuzzer import Account, LiteSVM, Pubkey
-from solana_fuzzer._gen import run_gen
+from wake_sol import Account, LiteSVM, Pubkey
+from wake_sol._gen import run_gen
 
 SO = Path(__file__).parent.parent / "programs/native-emitter/target/deploy/native_emitter.so"
 PROGRAM_ID = Pubkey(bytes([0xEE] * 32))
@@ -106,7 +106,7 @@ def test_events_render(emitter):
 def test_unknown_event_is_raw(emitter):
     # deploy the same .so at a DIFFERENT id with no generated pytypes → events
     # can't be attributed to a program table → UnknownEvent (raw), never guessed.
-    from solana_fuzzer import Instruction
+    from wake_sol import Instruction
     other = Pubkey(bytes([0xAB] * 32))
     svm = LiteSVM()
     svm.add_program(other, SO.read_bytes())
@@ -115,13 +115,13 @@ def test_unknown_event_is_raw(emitter):
     ev_auth = Account.new(svm)
     svm.airdrop(ev_auth, 1_000_000)
     data = bytes([9] * 8) + (7).to_bytes(8, "little")
-    from solana_fuzzer._native import AccountMeta
+    from wake_sol._native import AccountMeta
     ix = Instruction(other, [
         AccountMeta(ev_auth.pubkey, False, False),
         AccountMeta(other, False, False),   # self program account for the CPI
     ], data)
     res = payer.simulate(ix)
     assert res.success, res.logs
-    from solana_fuzzer import ReturnDataError  # noqa: F401  (import sanity)
-    from solana_fuzzer._interface import UnknownEvent
+    from wake_sol import ReturnDataError  # noqa: F401  (import sanity)
+    from wake_sol._interface import UnknownEvent
     assert res.events and all(isinstance(e, UnknownEvent) for e in res.events)

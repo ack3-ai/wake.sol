@@ -3925,40 +3925,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "solana_fuzzer"
-version = "0.1.0"
-dependencies = [
- "agave-feature-set",
- "base64 0.22.1",
- "bincode",
- "k256",
- "litesvm",
- "p256",
- "pyo3",
- "serde_json",
- "sha3",
- "solana-account",
- "solana-address 2.6.0",
- "solana-address-lookup-table-interface",
- "solana-clock",
- "solana-epoch-rewards",
- "solana-epoch-schedule",
- "solana-hash 3.1.0",
- "solana-instruction",
- "solana-instruction-error",
- "solana-keypair",
- "solana-last-restart-slot",
- "solana-message",
- "solana-rent 3.1.0",
- "solana-signature",
- "solana-signer",
- "solana-slot-hashes",
- "solana-transaction",
- "solana-transaction-error",
- "ureq",
-]
-
-[[package]]
 name = "spki"
 version = "0.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4218,6 +4184,40 @@ name = "void"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6a02e4885ed3bc0f2de90ea6dd45ebcbb66dacffe03547fadbb0eeae2770887d"
+
+[[package]]
+name = "wake_sol"
+version = "0.1.0"
+dependencies = [
+ "agave-feature-set",
+ "base64 0.22.1",
+ "bincode",
+ "k256",
+ "litesvm",
+ "p256",
+ "pyo3",
+ "serde_json",
+ "sha3",
+ "solana-account",
+ "solana-address 2.6.0",
+ "solana-address-lookup-table-interface",
+ "solana-clock",
+ "solana-epoch-rewards",
+ "solana-epoch-schedule",
+ "solana-hash 3.1.0",
+ "solana-instruction",
+ "solana-instruction-error",
+ "solana-keypair",
+ "solana-last-restart-slot",
+ "solana-message",
+ "solana-rent 3.1.0",
+ "solana-signature",
+ "solana-signer",
+ "solana-slot-hashes",
+ "solana-transaction",
+ "solana-transaction-error",
+ "ureq",
+]
 
 [[package]]
 name = "wasi"
