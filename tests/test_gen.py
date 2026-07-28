@@ -214,6 +214,49 @@ def test_wellknown_addresses_are_valid_base58():
 
 
 # --------------------------------------------------------------------------- #
+# program-defined errors (IDL `errors[]`) — nested on the builder class
+# --------------------------------------------------------------------------- #
+def test_errors_nested_on_builder(gen):
+    prog = gen.FixtureProgram
+    # codes copied verbatim from the IDL; `msg` omitted when the IDL omits it
+    assert prog.SlippageExceeded.code == 6000
+    assert prog.SlippageExceeded.msg == "price moved past the caller's limit"
+    assert prog.PoolPaused.code == 6001
+    assert getattr(prog.PoolPaused, "msg", None) is None
+
+    # every one of them under a per-program base, itself a ProgramError
+    from solana_fuzzer import ProgramError
+    assert issubclass(prog.SlippageExceeded, prog.Error)
+    assert issubclass(prog.PoolPaused, prog.Error)
+    assert issubclass(prog.Error, ProgramError)
+
+
+def test_error_module_aliases(gen):
+    """`from pytypes.<prog> import SomeError` keeps working alongside the
+    nested form — the aliases are the same objects, not copies."""
+    assert gen.SlippageExceeded is gen.FixtureProgram.SlippageExceeded
+    assert gen.PoolPaused is gen.FixtureProgram.PoolPaused
+    assert gen.FixtureProgramError is gen.FixtureProgram.Error
+
+
+def test_errors_registered_on_the_raise_path(gen):
+    """Importing the module ran `register_errors`, so a raw Custom code from
+    this program resolves to the specific nested class."""
+    from solana_fuzzer._errors import build
+    resolved = build(code=6000, program_id=str(gen.PROGRAM_ID))
+    assert type(resolved) is gen.FixtureProgram.SlippageExceeded
+
+
+def test_errors_do_not_register_as_instructions(gen):
+    """Nesting exception classes on the builder must not confuse the interface
+    reflection, which walks the class for `__pytypes_ix__` members."""
+    from solana_fuzzer._codec import build_interface_from_module
+    iface = build_interface_from_module(
+        gen.__name__, gen.FixtureProgram, gen.PROGRAM_ID, gen.PROGRAM_NAME)
+    assert {d.name for d in iface._defs} == {"do_swap", "store", "noop", "init"}
+
+
+# --------------------------------------------------------------------------- #
 # generated output matches the canonical hand-written fixture, byte-for-byte
 # --------------------------------------------------------------------------- #
 def test_generated_data_matches_handwritten_fixture(gen):

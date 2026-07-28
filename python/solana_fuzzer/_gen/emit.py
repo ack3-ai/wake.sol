@@ -241,22 +241,39 @@ class ModuleEmitter:
 
     # -- assembly ---------------------------------------------------------- #
     # -- errors ------------------------------------------------------------ #
-    def _emit_errors(self, base_name):
-        """One exception class per IDL ``errors[]`` entry, under a per-program
-        base (a ``ProgramError`` subclass). Codes copied verbatim; ``register_errors``
-        wires them into the raise-path resolver. See design/pytypes §10.2."""
-        blocks = [
-            f"class {base_name}(ProgramError):\n"
-            f'    """Base for every {self.idl.name} program error — '
-            f"catch it to match any of them.\"\"\""
+    def _emit_error_members(self, cls_name):
+        """The IDL ``errors[]`` entries as **nested** classes on the builder, so
+        they read as what they are — errors the program defines — and resolve as
+        ``<Program>.<Name>``. Codes copied verbatim.
+
+        Nesting is safe for registration: ``build_interface_from_module`` reflects
+        only over members carrying ``__pytypes_ix__`` (``_codec.builder``), so
+        exception classes are skipped. See design/pytypes §10.2."""
+        lines = [
+            "    # ------------------------------- errors ------------------------------- #",
+            f"    # Defined by the program (IDL `errors[]`). Catch `{cls_name}.Error`",
+            "    # to match any of them; each is also importable from this module.",
+            "    class Error(ProgramError):",
+            f'        """Base for every {self.idl.name} program error — '
+            'catch it to match any of them."""',
         ]
         for e in self.idl.errors:
-            lines = [f"class {e.name}({base_name}):", f"    code = {e.code}"]
+            lines.append("")
+            lines.append(f"    class {e.name}(Error):")
+            lines.append(f"        code = {e.code}")
             if e.msg is not None:
-                lines.append(f"    msg = {e.msg!r}")
-            blocks.append("\n".join(lines))
-        blocks.append(f"register_errors({base_name})")
-        return blocks
+                lines.append(f"        msg = {e.msg!r}")
+        return lines
+
+    def _emit_error_aliases(self, cls_name, base_name):
+        """Module-level aliases for the nested error classes, so a direct
+        ``from pytypes.<prog> import SomeError`` keeps working, plus the
+        ``register_errors`` call that wires them into the raise-path resolver."""
+        lines = [f"{base_name} = {cls_name}.Error"]
+        lines += [f"{e.name} = {cls_name}.{e.name}" for e in self.idl.errors]
+        lines.append("")
+        lines.append(f"register_errors({cls_name}.Error)")
+        return lines
 
     def _imports(self):
         out = []
@@ -372,11 +389,7 @@ class ModuleEmitter:
             parts.append(_section("2. accounts") + "\n" + "\n\n\n".join(account_blocks))
         if event_blocks:
             parts.append(_section("3. events") + "\n" + "\n\n\n".join(event_blocks))
-        if idl.errors:
-            parts.append(_section("4. errors") + "\n"
-                         + "\n\n\n".join(self._emit_errors(f"{cls_name}Error")))
-
-        cls_lines = [_section("5. instructions / builder")]
+        cls_lines = [_section("4. instructions / builder (+ program-defined errors)")]
         if self.layouts:
             # Encode layouts — compiled once at import (the encode-side mirror of
             # the decode layout built at registration). Placed after the type
@@ -387,11 +400,19 @@ class ModuleEmitter:
             cls_lines.append("")
         cls_lines += [f"class {cls_name}:",
                       "    program_id = PROGRAM_ID"]
+        if idl.errors:
+            cls_lines.append("")
+            cls_lines.extend(self._emit_error_members(cls_name))
         if method_blocks:
             cls_body = "\n\n".join(method_blocks)
             cls_lines.append("")
             cls_lines.append(cls_body)
         parts.append("\n".join(cls_lines))
+
+        if idl.errors:
+            parts.append(_section("5. errors — module-level aliases") + "\n"
+                         + "\n".join(self._emit_error_aliases(cls_name,
+                                                              f"{cls_name}Error")))
 
         parts.append(_section("6. self-register (import side effect)") + "\n" +
                      f"register(build_interface_from_module("

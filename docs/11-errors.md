@@ -99,16 +99,27 @@ Semantics that make these safe as assertions:
 
 ## Custom program errors: `register_errors`
 
-Generated `pytypes` programs emit an error class per IDL `errors[]` entry, rooted at a per-program `ProgramError` subclass, and **register themselves on import** — so a failure in that program resolves to the generated class automatically:
+Generated `pytypes` programs emit an error class per IDL `errors[]` entry, **nested on the program's builder class** and rooted at a per-program `Error` base, and they **register themselves on import** — so a failure in that program resolves to the generated class automatically:
 
 ```python
 # generated in pytypes/my_program.py, registered when you import it:
-#   class MyProgramError(ProgramError): ...
-#   class TooSmall(MyProgramError): code = 6100; msg = "value is too small"
+#   class MyProgram:
+#       class Error(ProgramError): ...            # every error below is one
+#       class TooSmall(Error): code = 6100; msg = "value is too small"
 
-with must_revert(my_program.TooSmall) as e:
-    payer.tx(my_program.MyProgram().do_thing(0, ...))
+with must_revert(MyProgram.TooSmall) as e:
+    payer.tx(MyProgram.do_thing(0, ...))
 assert e.value.code == 6100
+```
+
+Nesting is what makes them read as what they are — errors *that program* defines — and puts them one attribute away from the builder you are already calling. Catch `MyProgram.Error` to match any error from that program.
+
+Each class is also aliased at module level, so a direct import keeps working and the base is available under its `<Program>Error` name:
+
+```python
+from pytypes.my_program import TooSmall, MyProgramError   # aliases, same objects
+assert TooSmall is MyProgram.TooSmall
+assert MyProgramError is MyProgram.Error
 ```
 
 To register a hand-written error family (no IDL), subclass `ProgramError` and call `register_errors`:

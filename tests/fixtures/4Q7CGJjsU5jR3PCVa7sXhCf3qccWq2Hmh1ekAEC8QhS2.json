@@ -55,6 +55,17 @@
       "discriminator": [170, 192, 151, 44, 27, 63, 16, 82]
     }
   ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "SlippageExceeded",
+      "msg": "price moved past the caller's limit"
+    },
+    {
+      "code": 6001,
+      "name": "PoolPaused"
+    }
+  ],
   "types": [
     {
       "name": "Side",
