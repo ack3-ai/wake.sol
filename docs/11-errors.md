@@ -122,6 +122,32 @@ assert TooSmall is MyProgram.TooSmall
 assert MyProgramError is MyProgram.Error
 ```
 
+## Comparing a caught error
+
+Errors compare with `==` against either an instance or a class, so you can assert
+on a captured `.value` without reaching for `isinstance`:
+
+```python
+with may_revert() as e:
+    payer.tx(ix)
+
+assert e.value == MyProgram.TooSmall()       # same error, same code
+assert e.value == MyProgram.TooSmall         # isinstance test (no parentheses)
+assert e.value == MyProgram.Error            # any error from that program
+assert e.value == ProgramError               # any program-defined code
+```
+
+Comparison ignores `instruction_index` / `account_index` / `tx` — those record
+*where* the error surfaced, not *which* error it is, so assert on them separately
+when they matter:
+
+```python
+assert e.value == MyProgram.TooSmall and e.value.instruction_index == 0
+```
+
+Prefer `must_revert(MyProgram.TooSmall)` when the call *must* fail — it also
+asserts that a revert happened at all, which a post-hoc `==` cannot.
+
 To register a hand-written error family (no IDL), subclass `ProgramError` and call `register_errors`:
 
 ```python

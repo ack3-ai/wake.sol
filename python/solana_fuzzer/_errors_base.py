@@ -48,6 +48,36 @@ class TransactionFailed(Exception):
     def __repr__(self) -> str:  # never expands self.tx -> no cycle recursion
         return f"<{self._headline()}>"
 
+    def __eq__(self, other: object) -> bool:
+        """Compare against a sibling instance *or* against a class::
+
+            err == my_program.EmptyVault()    # same error, same code
+            err == my_program.EmptyVault      # isinstance test (no parentheses)
+            err == my_program.MyProgramError  # any error from that program
+            err == ProgramError               # any program-defined code
+
+        Positional detail (``instruction_index`` / ``account_index`` / ``tx``) is
+        deliberately ignored: it records *where* the error surfaced, not *which*
+        error it is. Compare those fields explicitly when they matter.
+
+        This is sugar over the type matching that ``must_revert``/``may_revert``
+        already do — it does not reintroduce the ``ResolvedError`` value model
+        (no ``program_id``, no CPI attribution); see the superseded-design note
+        in ``design/pytypes-generator-spec/10-events-errors-return-data.md``.
+        """
+        if isinstance(other, type):
+            if issubclass(other, TransactionFailed):
+                return isinstance(self, other)
+            return NotImplemented
+        if isinstance(other, TransactionFailed):
+            return type(self) is type(other) and self.code == other.code
+        return NotImplemented
+
+    # Defining __eq__ would otherwise set __hash__ to None and make every error
+    # unhashable. Keyed on what __eq__ compares, so equal instances hash equal.
+    def __hash__(self) -> int:
+        return hash((type(self), self.code))
+
     @property
     def call_trace(self) -> "CallTrace":
         """Shortcut for ``self.tx.call_trace`` (the execution as a rendered
