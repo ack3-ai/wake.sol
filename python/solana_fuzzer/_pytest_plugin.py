@@ -12,6 +12,7 @@ from __future__ import annotations
 import hashlib
 import io
 import os
+import sys
 from pathlib import Path
 from typing import Callable, List, Optional, Tuple
 
@@ -71,7 +72,68 @@ def pytest_addoption(parser: pytest.Parser) -> None:
     )
 
 
+_ROOTPATH_ADDED = "_solana_fuzzer_rootpath_added"
+
+
+@pytest.hookimpl(tryfirst=True)
+def pytest_load_initial_conftests(early_config: pytest.Config) -> None:
+    """Put the project root on ``sys.path`` so a generated ``pytypes/`` package
+    imports under a bare ``pytest``.
+
+    ``python -m pytest`` adds the cwd for you; a bare ``pytest`` does not, and
+    pytest's own ``prepend`` import mode only inserts the *test file's* directory
+    (``tests/``), not the root — so a root-level ``pytypes/`` is unimportable and
+    the auto-import in :func:`pytest_configure` finds nothing. Rather than making
+    every consumer write ``pythonpath = ["."]`` in their own config, do it here.
+
+    Runs ``tryfirst`` on this hook so the path is in place *before* initial
+    conftests are imported — a root ``conftest.py`` that imports ``pytypes`` has
+    to work too. Equivalent to pytest's ``pythonpath`` ini (which resolves
+    relative paths against the rootdir), and skipped when something already put
+    the root on the path.
+    """
+    root = str(early_config.rootpath)
+    if root in sys.path:
+        return
+    sys.path.insert(0, root)
+    setattr(early_config, _ROOTPATH_ADDED, True)
+
+    def _remove() -> None:
+        if root in sys.path:
+            sys.path.remove(root)
+
+    early_config.add_cleanup(_remove)
+
+
+def _default_breakpoints_to_ipdb(config: pytest.Config) -> None:
+    """Make a manual ``breakpoint()`` land in ipdb rather than stock ``pdb``.
+
+    In-process we deliberately do not claim ``PYTHONBREAKPOINT`` (it fights
+    pytest's capture — see :mod:`solana_fuzzer._debug`), so ``breakpoint()``
+    would otherwise drop you at a bare ``(Pdb)`` prompt while everything else in
+    this harness — ``--attach``, the multiprocess runner — hands you ipdb.
+
+    Routing it through pytest's own ``--pdbcls`` keeps pytest in charge of
+    suspending capture, so this works without ``-s``; pointing
+    ``PYTHONBREAKPOINT`` at ipdb instead raises "reading from stdin while output
+    is captured" unless the user remembers ``-s``.
+
+    An explicit ``--pdbcls`` always wins, so ``--pdbcls=pdb:Pdb`` restores stock
+    pdb. IPython arrives with the ``ipdb`` runtime dependency, but degrade
+    silently if it is somehow absent.
+    """
+    if config.getoption("usepdb_cls", None):
+        return  # the user asked for a specific debugger
+    try:
+        import IPython.terminal.debugger  # noqa: F401
+    except Exception:
+        return
+    config.option.usepdb_cls = ("IPython.terminal.debugger", "TerminalPdb")
+
+
 def pytest_configure(config: pytest.Config) -> None:
+    _default_breakpoints_to_ipdb(config)
+
     raw = config.getoption("--seed")
     if raw is None:
         base_seed = os.urandom(8)
