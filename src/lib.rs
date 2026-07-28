@@ -458,7 +458,13 @@ fn apply_feature_set(svm: InnerLiteSVM, feature_set: FeatureSet) -> InnerLiteSVM
     svm
 }
 
-#[pyclass(name = "LiteSVM", module = "solana_fuzzer._native", unsendable)]
+// NOT `unsendable`: `litesvm::LiteSVM` is `Send`, and no method here releases the
+// GIL (`allow_threads` appears nowhere in this crate), so the GIL serializes every
+// access. Marking it unsendable pinned the SVM to its creating thread, which made
+// any *read* from another thread abort the process with a PyO3 thread-check panic —
+// including introspection by ipdb/IPython tab-completion, which prompt_toolkit runs
+// on a background thread via `ThreadedCompleter`. See tests/test_thread_access.py.
+#[pyclass(name = "LiteSVM", module = "solana_fuzzer._native")]
 pub(crate) struct PyLiteSVM {
     pub(crate) inner: InnerLiteSVM,
     pub(crate) sigverify: bool,
