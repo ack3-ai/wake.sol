@@ -5,7 +5,7 @@ use std::str::FromStr;
 use pyo3::exceptions::{PyRuntimeError, PyTypeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::sync::PyOnceLock;
-use pyo3::types::{PyBytes, PyInt};
+use pyo3::types::{PyBytes, PyDict, PyInt};
 use pyo3::{PyTraverseError, PyVisit};
 
 use agave_feature_set::FeatureSet;
@@ -33,12 +33,97 @@ mod trace;
 use solana_clock::Clock;
 use solana_epoch_rewards::EpochRewards;
 use solana_epoch_schedule::EpochSchedule;
+use solana_fee_structure::{FeeBin, FeeStructure};
 use solana_last_restart_slot::LastRestartSlot;
 use solana_rent::Rent;
 use solana_slot_hashes::SlotHashes;
 
 use account::PyAccount;
 use sysvars::{PyClock, PyEpochRewards, PyEpochSchedule, PyRent};
+
+#[pyclass(
+    name = "FeeStructure",
+    module = "wake_sol._native",
+    frozen,
+    skip_from_py_object
+)]
+#[derive(Clone)]
+pub(crate) struct PyFeeStructure {
+    lamports_per_signature: u64,
+    lamports_per_write_lock: u64,
+    compute_fee_bins: Vec<(u64, u64)>,
+}
+
+impl From<&FeeStructure> for PyFeeStructure {
+    fn from(f: &FeeStructure) -> Self {
+        Self {
+            lamports_per_signature: f.lamports_per_signature,
+            lamports_per_write_lock: f.lamports_per_write_lock,
+            compute_fee_bins: f.compute_fee_bins.iter().map(|b| (b.limit, b.fee)).collect(),
+        }
+    }
+}
+
+#[pymethods]
+impl PyFeeStructure {
+    #[getter]
+    fn lamports_per_signature(&self) -> u64 {
+        self.lamports_per_signature
+    }
+
+    #[getter]
+    fn lamports_per_write_lock(&self) -> u64 {
+        self.lamports_per_write_lock
+    }
+
+    /// An immutable `{max_compute_units: fee_lamports}` mapping.
+    #[getter]
+    fn compute_fee_bins<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        let bins = PyDict::new(py);
+        for (limit, fee) in &self.compute_fee_bins {
+            bins.set_item(limit, fee)?;
+        }
+        py.import("types")?
+            .getattr("MappingProxyType")?
+            .call1((bins,))
+    }
+
+    fn __repr__(&self) -> String {
+        let bins = self
+            .compute_fee_bins
+            .iter()
+            .map(|(limit, fee)| format!("{limit}: {fee}"))
+            .collect::<Vec<_>>()
+            .join(", ");
+        format!(
+            "FeeStructure(lamports_per_signature={}, lamports_per_write_lock={}, \
+             compute_fee_bins={{{}}})",
+            self.lamports_per_signature, self.lamports_per_write_lock, bins,
+        )
+    }
+}
+
+fn extract_fee_bins(value: &Bound<'_, PyAny>) -> PyResult<Vec<FeeBin>> {
+    let items = value.call_method0("items").map_err(|_| {
+        PyTypeError::new_err("compute_fee_bins must be a mapping of CU limits to lamport fees")
+    })?;
+    let mut bins = Vec::new();
+    for item in items.try_iter()? {
+        let (limit, fee): (u64, u64) = item?.extract().map_err(|_| {
+            PyValueError::new_err(
+                "compute_fee_bins limits and fees must be non-negative u64 integers",
+            )
+        })?;
+        if limit == 0 {
+            return Err(PyValueError::new_err(
+                "compute_fee_bins limits must be greater than zero",
+            ));
+        }
+        bins.push(FeeBin { limit, fee });
+    }
+    bins.sort_unstable_by_key(|bin| bin.limit);
+    Ok(bins)
+}
 
 pub(crate) fn to_py_err<E: std::fmt::Debug>(e: E) -> PyErr {
     PyRuntimeError::new_err(format!("{:?}", e))
@@ -519,18 +604,26 @@ pub(crate) struct PyLiteSVM {
     /// default (i.e. constructed with `activate`/`deactivate`); `None` for the
     /// plain mainnet default, so `reset` can rebuild without recompiling.
     construction_features: Option<FeatureSet>,
+    /// Fee configuration restored by `reset`.
+    construction_fee_structure: FeeStructure,
 }
 
 #[pymethods]
 impl PyLiteSVM {
     #[new]
-    #[pyo3(signature = (*, sigverify = true, blockhash_check = true, transaction_history = true, activate = vec![], deactivate = vec![]))]
+    #[pyo3(signature = (*, sigverify = true, blockhash_check = true, transaction_history = true,
+                        activate = vec![], deactivate = vec![],
+                        lamports_per_signature = None, lamports_per_write_lock = None,
+                        compute_fee_bins = None))]
     fn new(
         sigverify: bool,
         blockhash_check: bool,
         transaction_history: bool,
         activate: Vec<Bound<'_, PyAny>>,
         deactivate: Vec<Bound<'_, PyAny>>,
+        lamports_per_signature: Option<u64>,
+        lamports_per_write_lock: Option<u64>,
+        compute_fee_bins: Option<Bound<'_, PyAny>>,
     ) -> PyResult<Self> {
         // `base_svm` is already mainnet parity; only touch (and recompile) the
         // feature set when there are actual deltas. Remember the delta set so
@@ -548,6 +641,17 @@ impl PyLiteSVM {
             }
             (apply_feature_set(base, fs.clone()), Some(fs))
         };
+        let mut inner = inner;
+        let mut construction_fee_structure = inner.get_fee_structure().clone();
+        construction_fee_structure.lamports_per_signature =
+            lamports_per_signature.unwrap_or_default();
+        if let Some(value) = lamports_per_write_lock {
+            construction_fee_structure.lamports_per_write_lock = value;
+        }
+        if let Some(value) = compute_fee_bins {
+            construction_fee_structure.compute_fee_bins = extract_fee_bins(&value)?;
+        }
+        inner.set_fee_structure(construction_fee_structure.clone());
         Ok(Self {
             inner,
             sigverify,
@@ -555,6 +659,7 @@ impl PyLiteSVM {
             transaction_history,
             fork: None,
             construction_features,
+            construction_fee_structure,
         })
     }
 
@@ -574,6 +679,7 @@ impl PyLiteSVM {
             Some(fs) => apply_feature_set(base, fs.clone()),
             None => base,
         };
+        self.inner.set_fee_structure(self.construction_fee_structure.clone());
         // Accounts are gone, so previously-hydrated addresses may re-hydrate.
         if let Some(fork) = self.fork.as_mut() {
             fork.seen.clear();
@@ -656,6 +762,35 @@ impl PyLiteSVM {
         let svm = std::mem::take(&mut self.inner);
         self.inner = svm.with_blockhash_check(value);
         self.blockhash_check = value;
+    }
+
+    /// Current transaction fee configuration (read-only snapshot).
+    #[getter]
+    fn fees(&self) -> PyFeeStructure {
+        self.inner.get_fee_structure().into()
+    }
+
+    /// **Cheatcode.** Partially update transaction fees, preserving chain state.
+    #[pyo3(signature = (*, lamports_per_signature = None, lamports_per_write_lock = None,
+                        compute_fee_bins = None))]
+    fn set_fees(
+        &mut self,
+        lamports_per_signature: Option<u64>,
+        lamports_per_write_lock: Option<u64>,
+        compute_fee_bins: Option<Bound<'_, PyAny>>,
+    ) -> PyResult<()> {
+        let mut fees = self.inner.get_fee_structure().clone();
+        if let Some(value) = lamports_per_signature {
+            fees.lamports_per_signature = value;
+        }
+        if let Some(value) = lamports_per_write_lock {
+            fees.lamports_per_write_lock = value;
+        }
+        if let Some(value) = compute_fee_bins {
+            fees.compute_fee_bins = extract_fee_bins(&value)?;
+        }
+        self.inner.set_fee_structure(fees);
+        Ok(())
     }
 
     /// Whether the given feature-gate pubkey is active in this SVM's feature set.
@@ -1327,8 +1462,12 @@ static DEFAULT_SVM: PyOnceLock<Py<PyLiteSVM>> = PyOnceLock::new();
 /// The process-global `LiteSVM`, created once in Rust on first access
 /// (sigverify and blockhash checks on).
 pub(crate) fn default_svm(py: Python<'_>) -> PyResult<Py<PyLiteSVM>> {
-    let cell = DEFAULT_SVM
-        .get_or_try_init(py, || Py::new(py, PyLiteSVM::new(true, true, true, vec![], vec![])?))?;
+    let cell = DEFAULT_SVM.get_or_try_init(py, || {
+        Py::new(
+            py,
+            PyLiteSVM::new(true, true, true, vec![], vec![], None, None, None)?,
+        )
+    })?;
     Ok(cell.clone_ref(py))
 }
 
@@ -1340,6 +1479,7 @@ fn py_default_svm(py: Python<'_>) -> PyResult<Py<PyLiteSVM>> {
 #[pymodule]
 fn _native(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyLiteSVM>()?;
+    m.add_class::<PyFeeStructure>()?;
     m.add_class::<PyPubkey>()?;
     m.add_class::<PyTxResult>()?;
     m.add_class::<account::PyAccount>()?;

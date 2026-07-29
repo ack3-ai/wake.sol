@@ -100,6 +100,25 @@ svm.minimum_balance_for_rent_exemption(0)     # 890880   (empty account)
 svm.minimum_balance_for_rent_exemption(165)   # 2039280  (SPL token account)
 ```
 
+## Transaction fees
+
+Fees are exposed as an immutable snapshot and changed with a partial,
+keyword-only setter. Compute-fee bins map a maximum compute-unit limit to a fee
+in lamports; their order in the input mapping does not matter.
+
+```python
+svm.fees
+# FeeStructure(lamports_per_signature=0, lamports_per_write_lock=0,
+#              compute_fee_bins={1400000: 0})
+
+svm.set_fees(lamports_per_signature=5_000)  # opt into mainnet's signature fee
+svm.set_fees(compute_fee_bins={200_000: 0, 1_400_000: 1_000})
+```
+
+Omitted fields remain unchanged. An empty `compute_fee_bins={}` explicitly
+removes all base compute fees. `reset()` restores the fee configuration passed
+to the `LiteSVM(...)` constructor.
+
 ## Sysvars
 
 Cluster parameters (clock, rent, …) are exposed as typed objects. **Reads** go through litesvm's `get_sysvar`; **writes** through `set_sysvar`, which updates the cached sysvar the runtime actually uses during execution (not just the backing account). Setters are **partial** — only the keywords you pass change; the rest keep their values.

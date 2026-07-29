@@ -38,6 +38,7 @@ solana-clock = "=3.0.1"
 solana-rent = "=3.1.0"
 solana-epoch-schedule = "=3.1.0"
 solana-epoch-rewards = "=3.0.1"
+solana-fee-structure = "=3.0.0"
 solana-last-restart-slot = "=3.0.0"
 solana-slot-hashes = "=3.0.1"
 # Address Lookup Table: official instruction builders + state serialization for

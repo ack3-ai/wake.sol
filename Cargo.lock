@@ -4204,6 +4204,7 @@ dependencies = [
  "solana-clock",
  "solana-epoch-rewards",
  "solana-epoch-schedule",
+ "solana-fee-structure",
  "solana-hash 3.1.0",
  "solana-instruction",
  "solana-instruction-error",

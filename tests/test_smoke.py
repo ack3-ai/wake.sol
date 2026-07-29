@@ -453,6 +453,58 @@ def test_sysvar_rent_and_others():
     assert isinstance(svm.slot_hashes, list)
 
 
+def test_fee_structure_partial_set_and_validation():
+    from types import MappingProxyType
+
+    original = svm.fees
+    assert original.lamports_per_signature == 0
+    assert original.lamports_per_write_lock == 0
+    assert isinstance(original.compute_fee_bins, MappingProxyType)
+
+    svm.set_fees(
+        lamports_per_write_lock=17,
+        compute_fee_bins={1_400_000: 1_000, 200_000: 10},
+    )
+    assert svm.fees.lamports_per_signature == 0
+    assert svm.fees.lamports_per_write_lock == 17
+    assert dict(svm.fees.compute_fee_bins) == {200_000: 10, 1_400_000: 1_000}
+    with pytest.raises(TypeError):
+        svm.fees.compute_fee_bins[200_000] = 99
+    with pytest.raises(TypeError):
+        svm.set_fees(123)
+    with pytest.raises(TypeError, match="mapping"):
+        svm.set_fees(compute_fee_bins=[(10, 20)])
+    with pytest.raises(ValueError, match="greater than zero"):
+        svm.set_fees(compute_fee_bins={0: 20})
+    with pytest.raises(ValueError, match="non-negative"):
+        svm.set_fees(compute_fee_bins={10: -1})
+
+    svm.set_fees(compute_fee_bins={})
+    assert dict(svm.fees.compute_fee_bins) == {}
+
+
+def test_fee_setter_changes_charged_signature_fee():
+    payer, recipient = Account.new(), Account.new()
+    svm.airdrop(payer, 5_000_000)
+    svm.set_fees(lamports_per_signature=123)
+    before = payer.lamports
+    payer.tx(svm.system.transfer(2_000_000, from_=payer, to=recipient))
+    assert payer.lamports == before - 2_000_000 - 123
+
+
+def test_fee_structure_constructor_and_reset():
+    chain = LiteSVM(
+        lamports_per_signature=123,
+        lamports_per_write_lock=7,
+        compute_fee_bins={1_400_000: 456},
+    )
+    chain.set_fees(lamports_per_signature=999, compute_fee_bins={})
+    chain.reset()
+    assert chain.fees.lamports_per_signature == 123
+    assert chain.fees.lamports_per_write_lock == 7
+    assert dict(chain.fees.compute_fee_bins) == {1_400_000: 456}
+
+
 def test_tx_infers_extra_signers_from_keystore():
     payer = Account.new()
     svm.airdrop(payer, 5_000_000_000)
