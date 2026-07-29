@@ -1,7 +1,8 @@
-"""Hand-authored fixture program mirroring generator output — the v1 acceptance
-artifact (§12.4). Exercises the full v1 type surface and the unified builder
-convention (data positional, accounts keyword-only, decoder derived from the
-signature). Imported by ``test_codec.py``; importing it registers the program.
+"""Hand-authored fixture program mirroring generator output — the canonical
+acceptance artifact. Exercises the full supported type surface and the unified
+builder convention (data positional, accounts keyword-only, decoder derived from
+the signature). Imported by ``test_codec.py``; importing it registers the
+program.
 """
 
 from __future__ import annotations

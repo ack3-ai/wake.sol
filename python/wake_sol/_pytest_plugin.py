@@ -156,7 +156,7 @@ def pytest_configure(config: pytest.Config) -> None:
     # Verbose (`-v`) renders unlabeled addresses in full, no `3Ftw…HBaY` ellipsis.
     wake_sol._labels.set_full_addresses(config.option.verbose > 0)
 
-    # Zero-config auto-import of a top-level generated `pytypes/` package (§9.9):
+    # Zero-config auto-import of a top-level generated `pytypes/` package:
     # importing it registers every generated program (import side effect). A
     # missing `pytypes` is the legal "no generated package" case; a broken
     # generated submodule is a loud error and never swallowed.

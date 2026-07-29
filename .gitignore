@@ -20,16 +20,16 @@ venv/
 # Default mainnet-fork snapshot cache (svm.fork(...)). Commit one deliberately
 # (see docs/13-forking.md) if a test needs a hermetic, checked-in fork.
 /fork-cache/
-# Per-example fork caches (examples/*/*.py write here on live runs).
+# Non-default fork caches wherever a test points svm.fork(cache=...).
 **/.fork-cache/
 
 # Runtime artifacts: crash.txt (--attach post-mortem) and per-worker logs
 # (`wake-sol test -P` writes .wake-sol/logs/testing/process-N.ansi).
 /.wake-sol/
 
-# Local Claude Code settings — personal machine paths / permissions, not shared.
+# Local editor / tooling settings — per-machine, not shared.
 .claude/settings.local.json
+.pytest_cache/
 
-# Internal design & spec docs — kept local, intentionally uncommitted for now.
 /design/
 .devcontainer/

@@ -2,10 +2,11 @@
 
 Everything generated modules and built-ins need is re-exported here: the
 lowercase width aliases, the carriers, the metadata records + decorators, the
-deterministic codec, and the builder/introspection helpers. (Resolves the
-§2.2-vs-§4 import-path inconsistency: one public package, internal submodules.)
+deterministic codec, and the builder/introspection helpers. One package to
+import from; the submodules behind it are internal.
 
-v1 implements the codec in Python; the Rust (pyo3) port is deferred (§12.3).
+The codec is implemented in Python; a Rust (pyo3) port is possible later but is
+not planned for this release.
 """
 
 from __future__ import annotations

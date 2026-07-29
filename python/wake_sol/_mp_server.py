@@ -8,13 +8,15 @@ or print a meaningless "Base seed" summary in the server). The server *collects*
 tests but never runs them — :meth:`pytest_runtestloop` returns ``True`` after
 draining the workers' event queue.
 
-Topology (all explicitly on the ``fork`` start method — see design doc §3
-blocker 5; Python 3.14 defaults Linux to ``forkserver``, which would break the
-live-object handoff of the ``Connection``/``Queue``/plugin instance):
+Topology (all explicitly on the ``fork`` start method — the worker plugin
+instance and its ``Connection``/``Queue`` are live objects handed to the child by
+inheritance and are not picklable, so the default start method must not be
+relied on; Python 3.14 defaults Linux to ``forkserver``, which would break that
+handoff):
 
 * one shared ``Queue`` (workers → server: all event traffic);
-* one ``Pipe`` per worker (server ↔ worker: collection handshake + index-list
-  assignment; interactive-attach negotiation is Phase 2).
+* one ``Pipe`` per worker (server ↔ worker: collection handshake, index-list
+  assignment, and interactive-attach negotiation).
 
 Lifecycle:
 
@@ -41,7 +43,7 @@ Lifecycle:
    server's, not the entry-point plugin's — the server runs with
    ``-p no:wake_sol``.
 
-Interactive attach (Phase 2). With ``--attach`` a worker that raises (or hits a
+Interactive attach. With ``--attach`` a worker that raises (or hits a
 ``breakpoint()``) ships a pickled traceback / source snippet and blocks; the
 server pauses the progress UI, renders it, and — **only when its own stdin is a
 tty** — prompts ``attach? [y/n]`` on the real terminal, sends the bool back over
@@ -55,8 +57,8 @@ Every queue message is a tuple whose ``[0]`` is the kind and ``[1]`` is the
 worker index (unconditionally — see the worker module). ``TestReport``s arrive
 as a tagged pair (``pytest_runtest_logreport`` pickle bytes, or a
 ``pytest_runtest_logreport_json`` fallback — see :mod:`_mp_serial`);
-``fuzz_test_stats`` and ``pytest_crashlog_path`` carry the Phase-3 reporting
-payloads. Unknown kinds are ignored, so the vocabulary stays open.
+``fuzz_test_stats`` and ``pytest_crashlog_path`` carry the end-of-session
+reporting payloads. Unknown kinds are ignored, so the vocabulary stays open.
 """
 
 from __future__ import annotations
@@ -112,7 +114,7 @@ class PytestPluginMultiprocessServer:
 
         # Explicit fork context: the worker plugin instance, its Connection, and
         # the Queue are live objects passed to the child — they are inherited by
-        # fork, never pickled. (design doc §3 blocker 5)
+        # fork, never pickled.
         from wake_sol._mp_worker import PytestPluginMultiprocessWorker
 
         # Per-worker crash-log dirs, siblings of the testing logs. Not wiped — a

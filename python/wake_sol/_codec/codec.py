@@ -1,6 +1,6 @@
 """The deterministic Borsh codec core: cursor, typed error, modes, entry points.
 
-v1 is pure Python (the Rust pyo3 port is deferred — §12.3). The per-type
+Pure Python for now — a Rust (pyo3) port is possible later. The per-type
 read/write logic lives on the IR nodes (``ir.py``); this module owns the cursor
 (the single byte chokepoint), the typed ``BorshError``, the shared depth guard,
 the mode-aware trailing-byte rule, and the encode/decode entry points.

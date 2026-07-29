@@ -38,7 +38,7 @@ What this plugin does, in lifecycle order:
   cleanly (``returncode=0``); the server re-raises ``KeyboardInterrupt`` once
   every worker is done.
 
-Interactive debugging (Phase 2). On a test exception (``--attach``) or a
+Interactive debugging. On a test exception (``--attach``) or a
 ``breakpoint()`` call the worker restores real stdio, ships a pickled traceback
 (or source snippet) to the server, and **blocks** on the pipe for the server's
 attach decision. On accept it grabs the tty (``sys.stdin = os.fdopen(0)`` — the

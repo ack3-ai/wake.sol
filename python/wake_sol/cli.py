@@ -162,15 +162,8 @@ _GEN_OPTIONS = [
                  help="Generate only these base58 program addresses (repeatable)."),
     click.option("--check", is_flag=True,
                  help="Diff a fresh regen against --out; exit 2 on drift. Writes nothing."),
-    click.option("--no-facts", is_flag=True,
-                 help="Ignore *.facts.json sidecars. Reserved — sidecars are "
-                      "not consumed yet, so this is currently a no-op."),
     click.option("--strict", is_flag=True,
                  help="Treat any per-program refusal as a hard failure."),
-    click.option("--verify", is_flag=True,
-                 help="Run the offline verification gate (deferred in v1)."),
-    click.option("--allow-unverified", is_flag=True,
-                 help="Emit even without sample bytes (stamps verified=false)."),
     click.option("-v", "--verbose", count=True, help="Per-program gen log."),
 ]
 

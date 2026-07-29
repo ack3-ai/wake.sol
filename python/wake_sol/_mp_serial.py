@@ -1,7 +1,7 @@
 """Report serialization for the multiprocess runner's results queue.
 
-Phase 1 put ``TestReport`` objects directly on the ``multiprocessing.Queue`` and
-let the queue's own pickling carry them to the server. That is fine for ordinary
+Putting ``TestReport`` objects directly on the ``multiprocessing.Queue`` and
+letting the queue's own pickling carry them to the server is fine for ordinary
 reports, but a report whose ``longrepr`` is unpicklable fails *asynchronously* in
 the queue's background feeder thread — which can silently drop a failure instead
 of reporting it. These helpers serialize explicitly in the worker so a pickling

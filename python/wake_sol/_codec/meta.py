@@ -1,8 +1,8 @@
 """Inert metadata records + decorators consumed by the registration walk.
 
-These carry the facts annotations cannot express (serialization mode,
-discriminator, account-root marker, optional/PDA account slots). The trusted
-codec only *consumes* them; the generator/facts-extractor populates them.
+These carry what annotations cannot express (serialization mode, discriminator,
+account-root marker, optional/PDA account slots). The trusted codec only
+*consumes* them; the generator populates them.
 """
 
 from __future__ import annotations
@@ -15,14 +15,14 @@ from typing import Optional
 
 class Serialization(Enum):
     BORSH = "borsh"
-    BYTEMUCK = "bytemuck"              # -> codec refuses (use C-layout/facts)
+    BYTEMUCK = "bytemuck"              # -> codec refuses (C layout, not Borsh)
     BYTEMUCK_UNSAFE = "bytemuckUnsafe"  # -> codec refuses
     CUSTOM = "custom"                 # -> codec refuses (layout not in IDL)
     BINCODE = "bincode"               # -> built-in decoder (System)
     PACK = "pack"                     # -> built-in decoder (SPL Token)
 
 
-#: §4 spells the enum ``SerKind``; keep the alias so either name resolves.
+#: Historical alias for :class:`Serialization`; kept so either name resolves.
 SerKind = Serialization
 
 
@@ -117,8 +117,10 @@ def event(discriminator: bytes):
 
 
 class ProgramError:
-    """Minimal base for generated per-program error enums. The full
-    errors/events runtime subsystem (§10) is deferred."""
+    """Inert IDL-metadata marker for a program's error set. The exception
+    hierarchy generated modules actually subclass is
+    :class:`wake_sol._errors.ProgramError`, which is what the public
+    ``wake_sol.ProgramError`` binds to."""
 
 
 class AccountFlagOverride(UserWarning):
@@ -140,7 +142,7 @@ _DISC_PREFIX = {"instruction": "global", "account": "account", "event": "event"}
 
 def anchor_discriminator(kind: str, name: str) -> bytes:
     """Compute an 8-byte Anchor discriminator from a prefixed name. Used ONLY as
-    the pre-0.30 fallback when the IDL carries no discriminator array (§5.8); a
+    the pre-0.30 fallback when the IDL carries no discriminator array; a
     present array (0.30+) or a custom/zero-length discriminator is taken
     verbatim, never recomputed."""
     prefix = _DISC_PREFIX[kind]

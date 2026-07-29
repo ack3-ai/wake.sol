@@ -1,12 +1,12 @@
 """``Tee`` streams — write to both a file and the original stream.
 
-Vendored ~verbatim from wake @ ``feat/version-5.0.0`` (``wake/utils/tee.py``),
-which credits https://github.com/algrebe/python-tee. Kept as its own module so
-the multiprocess worker can either *redirect* its stdio into a per-worker log
-(the Phase 1 default) or *tee* it — so worker 0's output stays live on the
-console under ``--attach-first`` (Phase 2). Phase 1 uses plain
-:func:`contextlib.redirect_stdout`/``redirect_stderr``; this is here so wiring
-the tee later touches nothing else.
+Vendored ~verbatim from wake (``wake/utils/tee.py``), which credits
+https://github.com/algrebe/python-tee. Kept as its own module so the
+multiprocess worker can choose per worker how to handle its stdio: by default it
+*redirects* into a per-worker log with plain
+:func:`contextlib.redirect_stdout`/``redirect_stderr``, and under
+``--attach-first`` worker 0 *tees* instead, so its output stays live on the
+console as well as in the log (see :mod:`wake_sol._mp_worker`).
 """
 
 from __future__ import annotations

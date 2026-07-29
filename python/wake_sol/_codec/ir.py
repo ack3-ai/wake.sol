@@ -436,7 +436,7 @@ def compile_field(ann, where="<field>"):
     """Lower one resolved annotation into an IR node (resolution order: bare
     guard -> Annotated -> Opt -> option -> reject-other-union -> vec -> scalar
     -> defined type)."""
-    # bare-numeric guard (§2.5): width unrecoverable
+    # bare-numeric guard: width unrecoverable
     if ann is int or ann is float:
         raise GenError(
             f"{where}: numeric field collapsed to bare {ann.__name__!r}; a "

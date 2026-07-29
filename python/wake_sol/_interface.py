@@ -1,7 +1,7 @@
 """Runtime contract for decoding instruction data into named instructions/args.
 
 Every program — built-in (hand-written, in ``_programs``) or generated from an
-IDL (Phase 1b) — registers a :class:`ProgramInterface` into the global
+IDL — registers a :class:`ProgramInterface` into the global
 ``REGISTRY`` keyed by base58 program id. The call-trace renderer calls
 :func:`decode_instruction` with a node's program id, data, and account count to
 get a :class:`DecodedInstruction` (instruction name, named args, per-slot
@@ -135,7 +135,7 @@ class ProgramInterface:
 
 
 class RefusingInterface(ProgramInterface):
-    """A whole-program refusal stub (§9.8): the program hit a generation-time
+    """A whole-program refusal stub: the program hit a generation-time
     punt (non-borsh serialization, an unrepresentable type, a missing layout),
     so every decode **refuses loudly** with the recorded reason rather than
     producing a plausible-but-wrong result. It still registers, so one bad

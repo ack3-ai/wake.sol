@@ -11,10 +11,9 @@ process-global ``wake_sol.random`` (keypairs included, see
 ``Account.new``), which the pytest plugin reseeds per test. So a failure
 reproduces from the base ``--seed`` alone.
 
-Deliberately *not* ported from wake (feat/version-5.0.0 `wake/testing/fuzzing`):
-shrinking and type-driven parameter generation. Flows take no generated
-arguments — a flow draws whatever it needs from ``wake_sol.random`` in its
-own body.
+Deliberately *not* ported from wake's `wake/testing/fuzzing`: shrinking and
+type-driven parameter generation. Flows take no generated arguments — a flow
+draws whatever it needs from ``wake_sol.random`` in its own body.
 """
 
 from __future__ import annotations

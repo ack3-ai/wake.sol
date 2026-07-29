@@ -1,7 +1,7 @@
-"""Acceptance tests for ``wake-sol gen`` (§7 / §12.4): generate the
-pytypes package from a hand-authored Anchor IDL, then prove the generated
-modules import, round-trip through the engine, emit byte-identical instruction
-data to the canonical hand-written fixture, and regenerate deterministically
+"""Acceptance tests for ``wake-sol gen``: generate the pytypes package from a
+hand-authored Anchor IDL, then prove the generated modules import, round-trip
+through the engine, emit byte-identical instruction data to the canonical
+hand-written fixture, and regenerate deterministically
 (the ``--check`` drift gate). Refusal stubs and address-keying errors are
 covered too.
 """
@@ -278,7 +278,7 @@ def test_generated_data_matches_handwritten_fixture(gen):
 
 
 # --------------------------------------------------------------------------- #
-# determinism + the --check drift gate (§9.6, §9.7)
+# determinism + the --check drift gate
 # --------------------------------------------------------------------------- #
 def test_regeneration_is_byte_identical(tmp_path):
     a, b = tmp_path / "a", tmp_path / "b"
@@ -310,14 +310,13 @@ def test_manifest_provenance(tmp_path):
     manifest = json.loads((out / "_manifest.json").read_text())
     assert set(manifest) == {ADDR}
     entry = manifest[ADDR]
-    assert entry["verified"] is False
     assert entry["module"] == "fixture_program"
     assert len(entry["idl_sha256"]) == 64
     assert "generated_at" in entry
 
 
 # --------------------------------------------------------------------------- #
-# refusal stubs (§9.8) and address keying (§9.1)
+# refusal stubs and address keying
 # --------------------------------------------------------------------------- #
 def _write_idl(dir_, name, doc):
     p = dir_ / name

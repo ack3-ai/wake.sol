@@ -130,7 +130,7 @@ class Idl:
 # --------------------------------------------------------------------------- #
 def _disc(raw, kind: str, name: str) -> bytes:
     """Verbatim discriminator array when present (0.30+ / 0.31 custom), else the
-    pre-0.30 computed fallback ``sha256(prefix:name)[:8]`` (§5.8)."""
+    pre-0.30 computed fallback ``sha256(prefix:name)[:8]``."""
     arr = raw.get("discriminator")
     if arr is not None:
         return bytes(arr)
@@ -216,7 +216,7 @@ def _flatten_accounts(raw_accounts) -> list:
 
 
 def _resolve_address(doc, path) -> str:
-    """Address precedence (§9.1): top-level ``address`` -> ``metadata.address``
+    """Address precedence: top-level ``address`` -> ``metadata.address``
     -> base58 file stem -> GenError."""
     addr = doc.get("address") or (doc.get("metadata") or {}).get("address")
     if addr:
@@ -241,7 +241,7 @@ def _is_base58_address(s: str) -> bool:
 def load_idl(path) -> Idl:
     """Parse one IDL file at ``path`` into the normalized model. ``idl_sha256``
     is over the exact bytes consumed (computed before parsing) so it is stable
-    against JSON re-formatting (§9.4)."""
+    against JSON re-formatting."""
     raw_bytes = path.read_bytes()
     idl_sha256 = hashlib.sha256(raw_bytes).hexdigest()
     doc = json.loads(raw_bytes)
@@ -281,7 +281,7 @@ def load_idl(path) -> Idl:
             returns=_norm_type_node(ret) if ret is not None else None,
         ))
 
-    # errors[]: code copied verbatim (§10.2). Present in both legacy and 0.30+ IDLs.
+    # errors[]: code copied verbatim. Present in both legacy and 0.30+ IDLs.
     for e in doc.get("errors", ()):
         idl.errors.append(ErrorDef(int(e["code"]), e["name"], e.get("msg")))
 

@@ -80,6 +80,4 @@ The remaining flags (all listed by `wake-sol gen --help`):
 |---|---|
 | `--check` | regenerate in memory and diff against `--out`; writes nothing, exits 2 on drift (what `gen check` runs) |
 | `--strict` | a per-program generation refusal becomes a hard failure instead of a refusing stub |
-| `--verify` / `--allow-unverified` | the offline verification gate. Deferred for now: modules are stamped `verified=false`, `--verify` warns, and `--allow-unverified` silences that warning |
-| `--no-facts` | reserved — `*.facts.json` sidecars are not consumed yet, so this is currently a no-op |
 | `-v` | per-program generation log on stderr (repeatable) |

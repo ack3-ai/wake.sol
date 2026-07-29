@@ -197,7 +197,7 @@ def make_borsh_decoder(layout):
 def make_returns_decoder(node):
     """``node`` = the compiled IR for an instruction's IDL ``returns`` type -> a
     closure mapping raw return-data bytes to the decoded value. Strict, IX_DATA
-    semantics (exact length, full §5.11 validation) — so a wrong-type guess on
+    semantics (exact length, full validation) — so a wrong-type guess on
     the low-level path fails here rather than yielding a plausible-wrong value."""
 
     def decode_return(data: BytesLike):

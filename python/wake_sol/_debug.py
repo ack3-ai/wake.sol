@@ -170,7 +170,7 @@ def make_custom_pdb(cleanup: Callable[[], None]):
     so a ``Ctrl-D``/EOF exit leaves the server deadlocked waiting for the ack),
     this overrides *every* session-ending command — continue, quit, EOF. The
     worker additionally arms an ``atexit`` fallback, so the ack is guaranteed
-    even on an abnormal debugger exit (design doc §6, parity ledger D4).
+    even on an abnormal debugger exit.
     """
     from IPython.terminal.debugger import TerminalPdb
 

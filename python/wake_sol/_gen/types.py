@@ -1,11 +1,11 @@
 """Lower a normalized IDL type node to a Python annotation **source string** —
-the emit side of what ``ir.compile_field`` consumes (§2). The mapper records
-every symbol it references (aliases, ``typing`` names, engine carriers, and
+the emit side of what ``ir.compile_field`` consumes. The mapper records every
+symbol it references (aliases, ``typing`` names, engine carriers, and
 user-defined type names) on a shared :class:`Usage` accumulator so the emitter
 can produce a minimal, deterministic import block.
 
-Anything that cannot be represented in the v1 Borsh surface raises
-:class:`GenError` here, at generation time — never a guess (§2.8).
+Anything that cannot be represented in the supported Borsh surface raises
+:class:`GenError` here, at generation time — never a guess.
 """
 
 from __future__ import annotations
@@ -20,7 +20,7 @@ _SCALARS = {
 }
 _ALIAS_NAMES = set(_SCALARS.values()) | {"pubkey"}
 
-# Anchor-unreachable engine-extension widths (§2.7): reaching them from an IDL
+# Engine-extension widths with no Anchor IDL spelling: reaching them from an IDL
 # node is a hard error.
 _REJECTED_SCALARS = {"u256", "i256", "char"}
 
@@ -89,7 +89,7 @@ def map_type(node, usage: Usage) -> str:
 
 def _map_option(node, usage: Usage) -> str:
     """``Option<T>`` -> ``Optional[T]``; ``Option<Option<...>>`` -> non-collapsing
-    ``Opt[...]`` at every level (§2.4)."""
+    ``Opt[...]`` at every level."""
     inner = node["option"]
     if _is_option(inner):
         usage.carriers.add("Opt")

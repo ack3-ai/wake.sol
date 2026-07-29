@@ -62,7 +62,7 @@ pub(crate) struct Traced {
     /// frame), in order — not its children's, and not the runtime's structural
     /// `invoke`/`consumed`/`success`/`failed`/`return`/`data` markers. Text only.
     logs: Vec<String>,
-    /// Best-effort per-node enrichment recovered from the log stream (§10):
+    /// Best-effort per-node enrichment recovered from the log stream:
     /// cumulative compute units (incl. this frame's CPIs), status, the raw
     /// `failed: <msg>` text, and the frame's return-data bytes. `None`/`Unknown`
     /// when the relevant marker wasn't present (e.g. truncated logs).
@@ -165,7 +165,8 @@ fn is_precompile_pid(pid: &str) -> bool {
 /// positional pairing is the only sound one) and drop every non-marker line
 /// into the node whose frame is currently open.
 ///
-/// This is deliberately *text only* — no event/error/return-data decoding (§10).
+/// This is deliberately *text only* — event/error/return-data decoding happens
+/// separately, in the enrichment pass.
 /// On any divergence from the structured tree (program-id mismatch, or more
 /// `invoke`s than nodes — e.g. truncated logs) it stops attributing rather than
 /// misattribute; nodes past that point simply carry no logs.

@@ -2,10 +2,9 @@
 account name. Used as a **build-side convenience** to default a generated
 builder's account parameter when the IDL does *not* pin an ``address`` itself.
 
-DESIGN NOTE — read before extending (this is the "documented somewhere for
-later"). This name->address map is a deliberate, narrow exception to the
-project's refuse-don't-guess invariant, and it is safe *only* because of the
-guard-rails below:
+READ BEFORE EXTENDING. This name->address map is a deliberate, narrow exception
+to the project's refuse-don't-guess invariant, and it is safe *only* because of
+the guard-rails below:
 
   * **Authoritative source wins.** It is consulted ONLY when the IDL account has
     no ``address`` field. An IDL-declared address (Anchor 0.30/0.31 emits one
@@ -22,10 +21,10 @@ guard-rails below:
     ``address`` explicitly, which overrides this map. When in doubt, a program
     simply omits the well-known name and the caller passes the account.
 
-FOR LATER: if this heuristic ever proves too loose, gate it behind a ``gen``
-flag (e.g. ``--no-infer-accounts``) or move the table into a facts sidecar so it
-is reviewed *data* rather than baked-in code. Until then it stays small and
-conservative.
+If this heuristic ever proves too loose, the escape hatches are to gate it
+behind a ``gen`` flag (e.g. ``--no-infer-accounts``) or to move the table out
+into a data file so it is reviewed *data* rather than baked-in code. Until then
+it stays small and conservative.
 """
 
 from __future__ import annotations

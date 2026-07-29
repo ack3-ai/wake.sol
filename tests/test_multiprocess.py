@@ -148,7 +148,7 @@ def test_collection_mismatch_errors(tmp_path):
 
 
 # --------------------------------------------------------------------------- #
-# Phase 2: interactive cross-process debugging.
+# Interactive cross-process debugging.
 # --------------------------------------------------------------------------- #
 
 _FAILING = (
@@ -376,7 +376,7 @@ def test_pty_breakpoint_attach_continue(tmp_path):
 
 
 # --------------------------------------------------------------------------- #
-# Phase 3: fuzz-stats aggregation, crash-log JSONs, report serialization.
+# Fuzz-stats aggregation, crash-log JSONs, report serialization.
 # These fuzz tests are pure-Python (a shadow model, no compiled program) so they
 # run in CI without a built .so — see tests/test_fuzz_counter.py for the on-chain
 # version whose flow/invariant shape they mirror.

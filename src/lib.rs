@@ -1121,7 +1121,7 @@ impl PyLiteSVM {
         Ok(out)
     }
 
-    /// Hydrate every account a message references before execution (fork §3.2):
+    /// Hydrate every account a message references before execution:
     /// its static keys, and for a v0 message the two-wave ALT resolution —
     /// wave 1 hydrates the lookup-table accounts, wave 2 hydrates the addresses
     /// they resolve to. No-op when forking is off.
