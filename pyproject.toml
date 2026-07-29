@@ -9,7 +9,7 @@ description = "Python testing/fuzzing harness for Solana programs on top of lite
 readme = "README.md"
 license = "ISC"
 license-files = ["LICENSE"]
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 authors = [{ name = "Ack3" }]
 keywords = ["solana", "svm", "litesvm", "testing", "fuzzing", "anchor", "audit"]
 dependencies = [
@@ -29,7 +29,6 @@ classifiers = [
     "Intended Audience :: Developers",
     "Programming Language :: Rust",
     "Programming Language :: Python :: Implementation :: CPython",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",

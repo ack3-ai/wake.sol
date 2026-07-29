@@ -60,7 +60,7 @@ sha3 = "0.10"
 
 [dependencies.pyo3]
 version = "0.28"
-features = ["extension-module", "abi3-py39"]
+features = ["extension-module", "abi3-py310"]
 
 [profile.release]
 lto = "thin"
