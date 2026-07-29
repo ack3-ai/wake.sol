@@ -15,10 +15,12 @@ from wake_sol import Account, Pubkey, svm
 a = Account.new()                       # fresh keypair → can sign
 b = Account.from_secret(secret_bytes)   # known 64-byte secret → can sign
 v = Account(some_pubkey)                # bare-address view → cannot sign
-pda, bump = Account.find_program_address([b"seed", a.pubkey.to_bytes()], program_id)
+pda, bump = Account.find_program_address([b"seed", a], program_id)
 # the same address again, with the bump spelled out (no search)
-pda2 = Account.create_program_address([b"seed", a.pubkey.to_bytes(), bytes([bump])], program_id)
+pda2 = Account.create_program_address([b"seed", a, bytes([bump])], program_id)
 ```
+
+A **seed** is raw bytes (`bytes` / `bytearray` / `memoryview`), or a `Pubkey` / `Account` contributing its 32 address bytes — so `a`, `a.pubkey` and `a.pubkey.to_bytes()` are interchangeable in that list. Unlike everywhere else an address is accepted, `str` and `int` are **refused** here: as a seed, `"vault"` means the UTF-8 literal rather than base58, and a small `int` means an index or bump rather than a 32-byte address, so guessing would quietly derive a *different, perfectly valid* PDA instead of raising. Spell it out — `b"vault"` for a literal, `Pubkey(x)` for an address.
 
 All of these bind to the global `svm` unless you pass `svm=other` (see [§5](05-svm-and-sysvars.md)). Keypairs created via `Account.new()`/`from_secret()` are remembered process-wide, so the harness can sign for them automatically later (see [§3](03-transactions.md)).
 

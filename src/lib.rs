@@ -119,11 +119,12 @@ impl PyPubkey {
     /// the canonical bump seed. Returns `(address, bump)`.
     #[staticmethod]
     pub(crate) fn find_program_address(
-        seeds: Vec<Vec<u8>>,
+        seeds: Vec<Bound<'_, PyAny>>,
         program_id: &Bound<'_, PyAny>,
     ) -> PyResult<(PyPubkey, u8)> {
         let pid = PyPubkey::new(program_id)?;
-        let refs: Vec<&[u8]> = seeds.iter().map(Vec::as_slice).collect();
+        let owned = seed_bytes(&seeds)?;
+        let refs: Vec<&[u8]> = owned.iter().map(Vec::as_slice).collect();
         let (addr, bump) = Address::find_program_address(&refs, &pid.inner);
         Ok((PyPubkey { inner: addr }, bump))
     }
@@ -132,15 +133,51 @@ impl PyPubkey {
     /// if the result lands on the ed25519 curve.
     #[staticmethod]
     pub(crate) fn create_program_address(
-        seeds: Vec<Vec<u8>>,
+        seeds: Vec<Bound<'_, PyAny>>,
         program_id: &Bound<'_, PyAny>,
     ) -> PyResult<PyPubkey> {
         let pid = PyPubkey::new(program_id)?;
-        let refs: Vec<&[u8]> = seeds.iter().map(Vec::as_slice).collect();
+        let owned = seed_bytes(&seeds)?;
+        let refs: Vec<&[u8]> = owned.iter().map(Vec::as_slice).collect();
         Address::create_program_address(&refs, &pid.inner)
             .map(|inner| PyPubkey { inner })
             .map_err(|e| PyValueError::new_err(format!("{e}")))
     }
+}
+
+/// Lower each PDA seed to raw bytes: a bytes-like (or any sequence of ints) is
+/// taken verbatim, an `Account` contributes its 32 address bytes, and anything
+/// implementing `__bytes__` — `Pubkey`, notably — contributes those.
+///
+/// Deliberately *not* the `AddressLike` coercion of `PyPubkey::new`: there, a
+/// `str` is base58 and an `int` is a 32-byte big-endian address, but as a seed
+/// both read the other way (`"vault"` is a UTF-8 literal, an `int` seed is
+/// usually a 1-byte bump or a little-endian index). Guessing wrong would derive
+/// a different, perfectly valid address and fail silently, so both are refused
+/// and the caller spells out which meaning they want. For the same reason this
+/// calls `__bytes__` rather than `bytes()` — the latter routes an `int` through
+/// `__index__` and would turn a seed of `7` into seven zero bytes.
+fn seed_bytes(seeds: &[Bound<'_, PyAny>]) -> PyResult<Vec<Vec<u8>>> {
+    seeds
+        .iter()
+        .enumerate()
+        .map(|(i, seed)| {
+            if let Ok(raw) = seed.extract::<Vec<u8>>() {
+                return Ok(raw);
+            }
+            if let Ok(account) = seed.extract::<PyRef<PyAccount>>() {
+                return Ok(account.address.inner.as_array().to_vec());
+            }
+            if seed.hasattr("__bytes__")? {
+                return seed.call_method0("__bytes__")?.extract();
+            }
+            Err(PyTypeError::new_err(format!(
+                "seed {i} is {}; a PDA seed must be bytes, a Pubkey, or an Account \
+                 (write b\"vault\" for a literal seed, Pubkey(x) for an address)",
+                seed.get_type().name()?,
+            )))
+        })
+        .collect()
 }
 
 /// Raw structured error extracted from a failed `TransactionError`, before it is

@@ -214,6 +214,40 @@ def test_find_program_address():
     assert addr3 == addr
 
 
+def test_program_address_seed_forms():
+    program_id = Pubkey(1)
+    owner = Account.new()
+    expected, bump = Pubkey.find_program_address([b"vault", owner.pubkey.to_bytes()],
+                                                 program_id)
+
+    # a Pubkey / Account seed contributes its 32 address bytes
+    assert Pubkey.find_program_address([b"vault", owner.pubkey], program_id) \
+        == (expected, bump)
+    assert Pubkey.find_program_address([b"vault", owner], program_id) == (expected, bump)
+
+    # bytes-likes still go in verbatim
+    for raw in (bytearray(b"vault"), memoryview(b"vault"), list(b"vault")):
+        assert Pubkey.find_program_address([raw, owner.pubkey], program_id) \
+            == (expected, bump)
+
+    # create_program_address takes the same forms
+    assert Pubkey.create_program_address([b"vault", owner, bytes([bump])], program_id) \
+        == expected
+    # and so does the Account-returning pair
+    acc, acc_bump = Account.find_program_address([b"vault", owner], program_id)
+    assert (acc.pubkey, acc_bump) == (expected, bump)
+    assert Account.create_program_address([b"vault", owner.pubkey, bytes([bump])],
+                                          program_id).pubkey == expected
+
+    # str / int stay refused: as seeds they read the opposite way to AddressLike,
+    # so guessing would silently derive a different (valid) address
+    for bad in ("vault", 7, None, 1.5):
+        with pytest.raises(TypeError, match="PDA seed"):
+            Pubkey.find_program_address([bad], program_id)
+        with pytest.raises(TypeError, match="PDA seed"):
+            Account.find_program_address([bad], program_id)
+
+
 def test_account_meta_and_markers():
     pk = Pubkey(5)
 

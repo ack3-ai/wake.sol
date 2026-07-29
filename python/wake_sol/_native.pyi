@@ -29,6 +29,14 @@ AddressLike: TypeAlias = "str | bytes | int | Pubkey | Account"
 MetaLike: TypeAlias = "AccountMeta | AddressLike"
 """An `AccountMeta`, or an address-like value (coerced to a read-only meta)."""
 
+SeedLike: TypeAlias = "bytes | bytearray | memoryview | Sequence[int] | Pubkey | Account"
+"""One PDA seed: a bytes-like taken verbatim, or a `Pubkey` / `Account`
+contributing its 32 address bytes. Deliberately narrower than `AddressLike` —
+`str` and `int` are refused, because as a seed they read the other way round
+(`"vault"` is a UTF-8 literal, not base58), and guessing would derive a
+different valid address instead of raising. Spell it out: `b"vault"` for a
+literal, `Pubkey(x)` for an address."""
+
 class Pubkey:
     """A 32-byte Solana address."""
 
@@ -64,7 +72,7 @@ class Pubkey:
 
     @staticmethod
     def find_program_address(
-        seeds: Sequence[bytes], program_id: AddressLike
+        seeds: Sequence[SeedLike], program_id: AddressLike
     ) -> tuple[Pubkey, int]:
         """Derive a PDA from `seeds` and `program_id`, searching for the
         canonical bump seed. Returns `(address, bump)`."""
@@ -72,7 +80,7 @@ class Pubkey:
 
     @staticmethod
     def create_program_address(
-        seeds: Sequence[bytes], program_id: AddressLike
+        seeds: Sequence[SeedLike], program_id: AddressLike
     ) -> Pubkey:
         """Derive a PDA from explicit `seeds` (no bump search). Raises if the
         result lands on the ed25519 curve."""
@@ -836,7 +844,7 @@ class Account:
 
     @staticmethod
     def find_program_address(
-        seeds: Sequence[bytes],
+        seeds: Sequence[SeedLike],
         program_id: AddressLike,
         svm: LiteSVM | None = ...,
     ) -> tuple[Account, int]:
@@ -846,7 +854,7 @@ class Account:
 
     @staticmethod
     def create_program_address(
-        seeds: Sequence[bytes],
+        seeds: Sequence[SeedLike],
         program_id: AddressLike,
         svm: LiteSVM | None = ...,
     ) -> Account:

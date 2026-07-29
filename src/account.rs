@@ -337,7 +337,7 @@ impl PyAccount {
     #[pyo3(signature = (seeds, program_id, svm = None))]
     fn find_program_address(
         py: Python<'_>,
-        seeds: Vec<Vec<u8>>,
+        seeds: Vec<Bound<'_, PyAny>>,
         program_id: &Bound<'_, PyAny>,
         svm: Option<Py<PyLiteSVM>>,
     ) -> PyResult<(PyAccount, u8)> {
@@ -358,7 +358,7 @@ impl PyAccount {
     #[pyo3(signature = (seeds, program_id, svm = None))]
     fn create_program_address(
         py: Python<'_>,
-        seeds: Vec<Vec<u8>>,
+        seeds: Vec<Bound<'_, PyAny>>,
         program_id: &Bound<'_, PyAny>,
         svm: Option<Py<PyLiteSVM>>,
     ) -> PyResult<PyAccount> {
