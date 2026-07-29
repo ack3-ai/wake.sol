@@ -23,8 +23,8 @@ from wake_sol import (
     TokenError,
     TransactionFailed,
     UnknownError,
-    may_revert,
-    must_revert,
+    may_fail,
+    must_fail,
     svm,
 )
 from wake_sol import _errors as E
@@ -166,7 +166,7 @@ def test_account_already_in_use_resolves_to_system_error():
     assert payer.tx(svm.system.create_account(
         rent, 64, Pubkey(bytes([3] * 32)), from_=payer, to=target)).success
     # distinct args so the retry isn't deduped tx-level as AlreadyProcessed
-    with must_revert(SystemProgramError.AccountAlreadyInUse) as e:
+    with must_fail(SystemProgramError.AccountAlreadyInUse) as e:
         payer.tx(svm.system.create_account(
             rent, 32, Pubkey(bytes([4] * 32)), from_=payer, to=target))
     assert e.value.code == 0 and not isinstance(e.value, UnknownError)
@@ -202,7 +202,7 @@ def test_catch_by_base_category():
         alice.tx(svm.system.transfer(10**18, from_=alice, to=Account.new()))
 
 
-# --- must_revert / may_revert context managers ----------------------------- #
+# --- must_fail / may_fail context managers --------------------------------- #
 
 def _overspend():
     """A tx that always fails: System overspend -> InstructionError Custom(1),
@@ -213,73 +213,73 @@ def _overspend():
     alice.tx(svm.system.transfer(10**18, from_=alice, to=Account.new()))
 
 
-def test_must_revert_by_type_exposes_value():
-    with must_revert(SystemProgramError.ResultWithNegativeLamports) as e:
+def test_must_fail_by_type_exposes_value():
+    with must_fail(SystemProgramError.ResultWithNegativeLamports) as e:
         _overspend()
     assert isinstance(e.value, SystemProgramError.ResultWithNegativeLamports)
     assert e.value.code == 1
     assert e.value.tx.success is False and e.value.tx.error is e.value
 
 
-def test_must_revert_by_int_code():
+def test_must_fail_by_int_code():
     # bare int matches the raised error's .code, program-agnostic
-    with must_revert(1) as e:
+    with must_fail(1) as e:
         _overspend()
     assert e.value.code == 1
 
 
-def test_must_revert_by_base_category():
-    with must_revert(TransactionFailed):
+def test_must_fail_by_base_category():
+    with must_fail(TransactionFailed):
         _overspend()
-    with must_revert():  # no args == "must revert with anything"
+    with must_fail():  # no args == "must fail with anything"
         _overspend()
 
 
-def test_must_revert_raises_if_body_succeeds():
+def test_must_fail_raises_if_body_succeeds():
     alice = Account.new()
     svm.airdrop(alice, 1_000_000_000)
     with pytest.raises(AssertionError, match="succeeded"):
-        with must_revert(UnknownError):
+        with must_fail(UnknownError):
             alice.tx(svm.system.transfer(5_000_000, from_=alice, to=Account.new()))
 
 
-def test_must_revert_wrong_type_propagates():
-    # a revert that doesn't match the expected type bubbles out unchanged
+def test_must_fail_wrong_type_propagates():
+    # A failure that doesn't match the expected type bubbles out unchanged.
     with pytest.raises(SystemProgramError.ResultWithNegativeLamports):
-        with must_revert(AnchorError.ConstraintHasOne):
+        with must_fail(AnchorError.ConstraintHasOne):
             _overspend()
 
 
-def test_must_revert_wrong_code_propagates():
+def test_must_fail_wrong_code_propagates():
     with pytest.raises(SystemProgramError.ResultWithNegativeLamports):
-        with must_revert(6100):
+        with must_fail(6100):
             _overspend()
 
 
-def test_may_revert_allows_success():
+def test_may_fail_allows_success():
     alice = Account.new()
     svm.airdrop(alice, 1_000_000_000)
-    with may_revert(UnknownError) as e:
+    with may_fail(UnknownError) as e:
         alice.tx(svm.system.transfer(5_000_000, from_=alice, to=Account.new()))
-    assert e.value is None  # nothing reverted
+    assert e.value is None  # the transaction succeeded
 
 
-def test_may_revert_captures_matching_revert():
-    with may_revert(SystemProgramError.ResultWithNegativeLamports) as e:
+def test_may_fail_captures_matching_failure():
+    with may_fail(SystemProgramError.ResultWithNegativeLamports) as e:
         _overspend()
     assert isinstance(e.value, SystemProgramError.ResultWithNegativeLamports)
 
 
-def test_may_revert_wrong_type_propagates():
+def test_may_fail_wrong_type_propagates():
     with pytest.raises(SystemProgramError.ResultWithNegativeLamports):
-        with may_revert(AnchorError.ConstraintHasOne):
+        with may_fail(AnchorError.ConstraintHasOne):
             _overspend()
 
 
-def test_revert_cm_rejects_bad_args():
+def test_failure_cm_rejects_bad_args():
     for bad in ("some string", ValueError, True):
         with pytest.raises(TypeError):
-            with must_revert(bad):
+            with must_fail(bad):
                 pass
 
 

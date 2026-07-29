@@ -80,5 +80,5 @@ assert sim.success
 - Inspect CPIs and per-node logs → [§4 Call traces](04-call-traces.md)
 - Control time/rent/blockhash, feature gates → [§5 The SVM & sysvars](05-svm-and-sysvars.md)
 - Read return values and events → [§10 Return values & events](10-return-values-and-events.md)
-- Handle typed failures (`must_revert`, …) → [§11 Errors](11-errors.md)
+- Handle typed failures (`must_fail`, …) → [§11 Errors](11-errors.md)
 - Audit against real mainnet state → [§13 Mainnet forking](13-forking.md)

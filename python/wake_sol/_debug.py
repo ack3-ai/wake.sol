@@ -45,7 +45,7 @@ from typing import Callable, Optional, Type
 from rich import print as rich_print
 
 # The directory of this installed package. Frames inside it are framework
-# internals (the pyo3 shim, `_errors`, `must_revert`/`may_revert`, this plugin)
+# internals (the pyo3 shim, `_errors`, `must_fail`/`may_fail`, this plugin)
 # and are skipped when positioning the debugger.
 _PKG_DIR = Path(__file__).resolve().parent
 

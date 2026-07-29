@@ -1,5 +1,5 @@
 """Base classes for the structured-error hierarchy (see ``_errors`` for the full
-overview, ``build()`` resolution, and the ``must_revert`` / ``may_revert`` API).
+overview, ``build()`` resolution, and the ``must_fail`` / ``may_fail`` API).
 
 This module holds only the hand-written category bases. The concrete leaf classes
 (``AnchorError.ConstraintSeeds`` etc.) are real classes in the generated
@@ -60,7 +60,7 @@ class TransactionFailed(Exception):
         deliberately ignored: it records *where* the error surfaced, not *which*
         error it is. Compare those fields explicitly when they matter.
 
-        This is sugar over the type matching that ``must_revert``/``may_revert``
+        This is sugar over the type matching that ``must_fail``/``may_fail``
         already do — deliberately *not* a value model: no ``program_id``, no CPI
         attribution, nothing beyond the type and the code.
         """

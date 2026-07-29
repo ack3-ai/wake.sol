@@ -83,7 +83,7 @@ long fuzzing campaigns. To get a wheel rather than an editable install,
   compute units, return values, and events.
 - **Errors as types.** A failed transaction *raises*, resolved to a specific
   class (`TokenError.InsufficientFunds`, `MyProgram.TooSmall`), with
-  `must_revert` / `may_revert` for assertions.
+  `must_fail` / `may_fail` for assertions.
 - **Stateful fuzzing.** `FuzzTest` with `@flow` / `@invariant`, weighted
   randomized sequences, per-flow coverage stats, and full reproduction from a
   printed seed.

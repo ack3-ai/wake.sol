@@ -88,6 +88,6 @@ res.events                   # list — decoded events (emit! / emit_cpi!)      
 res.error                    # TransactionFailed | None — the exception, or None on success
 ```
 
-Return values and events have their own page — see [§10](10-return-values-and-events.md). Error handling (the typed hierarchy, `must_revert` / `may_revert`) is [§11](11-errors.md).
+Return values and events have their own page — see [§10](10-return-values-and-events.md). Error handling (the typed hierarchy, `must_fail` / `may_fail`) is [§11](11-errors.md).
 
 > **A note on `signature`.** When the sending SVM has **both** `sigverify` and `transaction_history` off, signatures are cosmetic (never verified, never used as a dedup key), so `tx` skips ed25519 signing entirely and leaves the all-zero placeholder — `res.signature` is then the 64-byte all-zero placeholder rather than a real signature. See [§5](05-svm-and-sysvars.md).

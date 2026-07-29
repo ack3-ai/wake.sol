@@ -58,8 +58,8 @@ from ._errors import (
     TokenError,
     TransactionFailed,
     UnknownError,
-    may_revert,
-    must_revert,
+    may_fail,
+    must_fail,
     register_errors,
 )
 
@@ -114,8 +114,8 @@ __all__ = [
     "decode_instruction",
     "flow",
     "invariant",
-    "may_revert",
-    "must_revert",
+    "may_fail",
+    "must_fail",
     "register_errors",
     "print",
     "random",

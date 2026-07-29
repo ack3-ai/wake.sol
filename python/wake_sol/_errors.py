@@ -3,14 +3,14 @@
 A failed transaction **raises** — the raised object *is* the specific error, a
 subclass of :class:`TransactionFailed`. Catch it by type::
 
-    with must_revert(MyProgram.TooSmall):            # exact
+    with must_fail(MyProgram.TooSmall):              # exact
         payer.tx(ix)
-    with must_revert(AnchorError.ConstraintHasOne):  # a framework constraint
+    with must_fail(AnchorError.ConstraintHasOne):    # a framework constraint
         payer.tx(ix)
-    with must_revert(MyProgram.Error):               # any error from that program
+    with must_fail(MyProgram.Error):                 # any error from that program
         payer.tx(ix)
 
-Hierarchy (the vocabulary you pass to ``must_revert`` / ``may_revert`` / catch)::
+Hierarchy (the vocabulary you pass to ``must_fail`` / ``may_fail`` / catch)::
 
     TransactionFailed                     # any failed tx
     ├─ SolanaError.<Variant>              # runtime native errors (name-keyed)
@@ -145,10 +145,10 @@ def build(code=None, native=None, instruction_index=None, account_index=None,
                              account_index=account_index)
 
 
-# --- revert context managers (wake-style must_revert/may_revert) ----------- #
+# --- failure context managers ---------------------------------------------- #
 class ExceptionWrapper:
-    """Handle yielded by :func:`must_revert` / :func:`may_revert`; its ``value``
-    is the caught :class:`TransactionFailed` (``None`` if nothing reverted)."""
+    """Handle yielded by :func:`must_fail` / :func:`may_fail`; its ``value`` is
+    the caught :class:`TransactionFailed` (``None`` if the body succeeded)."""
 
     value: TransactionFailed | None = None
 
@@ -170,7 +170,7 @@ def _split_expected(expected: tuple) -> tuple[tuple[type, ...], frozenset[int]]:
             codes.add(x)
         else:
             raise TypeError(
-                "must_revert/may_revert takes TransactionFailed subclasses or int "
+                "must_fail/may_fail takes TransactionFailed subclasses or int "
                 f"error codes; got {x!r}"
             )
     return tuple(types), frozenset(codes)
@@ -181,16 +181,16 @@ def _matches(e: TransactionFailed, types: tuple[type, ...], codes: frozenset[int
 
 
 @contextmanager
-def must_revert(*expected: type | int) -> Iterator[ExceptionWrapper]:
-    """Assert the body reverts with one of ``expected`` (a ``TransactionFailed``
+def must_fail(*expected: type | int) -> Iterator[ExceptionWrapper]:
+    """Assert the body fails with one of ``expected`` (a ``TransactionFailed``
     subclass, matched by type, or a bare int matched against the error's ``code``).
-    No args means "must revert with anything". Raises ``AssertionError`` if the
-    body succeeds; re-raises a revert that doesn't match. The caught exception is
+    No args means "must fail with anything". Raises ``AssertionError`` if the
+    body succeeds; re-raises a failure that doesn't match. The caught exception is
     available as the wrapper's ``value``::
 
-        with must_revert(AnchorError.ConstraintHasOne):
+        with must_fail(AnchorError.ConstraintHasOne):
             payer.tx(ix)
-        with must_revert(6100) as e:      # any program/Anchor code == 6100
+        with must_fail(6100) as e:        # any program/Anchor code == 6100
             payer.tx(ix)
         assert e.value.instruction_index == 0
     """
@@ -203,14 +203,14 @@ def must_revert(*expected: type | int) -> Iterator[ExceptionWrapper]:
             raise
         w.value = e
         return
-    raise AssertionError(f"expected a revert matching {list(expected) or [TransactionFailed]}, "
+    raise AssertionError(f"expected a failure matching {list(expected) or [TransactionFailed]}, "
                          "but the transaction succeeded")
 
 
 @contextmanager
-def may_revert(*expected: type | int) -> Iterator[ExceptionWrapper]:
-    """Like :func:`must_revert`, but the body is allowed to succeed. If it *does*
-    revert, the error must match one of ``expected`` (else it re-raises) — useful
+def may_fail(*expected: type | int) -> Iterator[ExceptionWrapper]:
+    """Like :func:`must_fail`, but the body is allowed to succeed. If it *does*
+    fail, the error must match one of ``expected`` (else it re-raises) — useful
     for fuzzing inputs that may or may not fail. The caught error (or ``None``) is
     the wrapper's ``value``."""
     types, codes = _split_expected(expected)

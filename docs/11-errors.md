@@ -66,20 +66,20 @@ The same `Custom(code)` means different things in different programs, so resolut
 
 A code no catalog claims (and that isn't in the Anchor range) resolves to `UnknownError` with the raw `.code` — the harness refuses to guess.
 
-## `must_revert` / `may_revert`
+## `must_fail` / `may_fail`
 
-For the common "this *should* fail" assertion, use the context managers (importable from `wake_sol`) instead of a bare `pytest.raises`. `must_revert` **requires** a matching revert; `may_revert` **allows** success. Both expose the captured exception as `.value`:
+For the common "this *should* fail" assertion, use the context managers (importable from `wake_sol`) instead of a bare `pytest.raises`. `must_fail` **requires** a matching failure; `may_fail` **allows** success. Both expose the captured exception as `.value`:
 
 ```python
-from wake_sol import must_revert, may_revert, SystemProgramError
+from wake_sol import must_fail, may_fail, SystemProgramError
 
 # must fail, with this specific error
-with must_revert(SystemProgramError.ResultWithNegativeLamports) as e:
+with must_fail(SystemProgramError.ResultWithNegativeLamports) as e:
     alice.tx(svm.system.transfer(10**18, from_=alice, to=bob))
 assert e.value.code == 1
 
 # may or may not fail; e.value is None if it succeeded
-with may_revert(SystemProgramError.ResultWithNegativeLamports) as e:
+with may_fail(SystemProgramError.ResultWithNegativeLamports) as e:
     alice.tx(maybe_failing_ix)
 ```
 
@@ -88,13 +88,13 @@ The matcher argument is flexible:
 | You pass | Matches |
 |---|---|
 | an exception **type** (`TokenError.InsufficientFunds`, `ProgramError`, `TransactionFailed`) | that type or any subclass |
-| a bare **int** (`must_revert(1)`) | any revert whose `.code` equals it (program-agnostic) |
-| **nothing** (`must_revert()`) | any revert at all |
+| a bare **int** (`must_fail(1)`) | any failure whose `.code` equals it (program-agnostic) |
+| **nothing** (`must_fail()`) | any transaction failure |
 
 Semantics that make these safe as assertions:
 
-- `must_revert(...)` raises `AssertionError` if the body **succeeds** (it was supposed to fail).
-- A revert that **doesn't match** the expected type/code is *not* swallowed — it propagates unchanged, so a wrong-error failure still surfaces as itself.
+- `must_fail(...)` raises `AssertionError` if the body **succeeds** (it was supposed to fail).
+- A failure that **doesn't match** the expected type/code is *not* swallowed — it propagates unchanged, so a wrong-error failure still surfaces as itself.
 - A non-type, non-int argument (a string, `True`, a non-exception class) raises `TypeError` — misuse fails loudly.
 
 ## Custom program errors: `register_errors`
@@ -107,7 +107,7 @@ Generated `pytypes` programs emit an error class per IDL `errors[]` entry, **nes
 #       class Error(ProgramError): ...            # every error below is one
 #       class TooSmall(Error): code = 6100; msg = "value is too small"
 
-with must_revert(MyProgram.TooSmall) as e:
+with must_fail(MyProgram.TooSmall) as e:
     payer.tx(MyProgram.do_thing(0, ...))
 assert e.value.code == 6100
 ```
@@ -128,7 +128,7 @@ Errors compare with `==` against either an instance or a class, so you can asser
 on a captured `.value` without reaching for `isinstance`:
 
 ```python
-with may_revert() as e:
+with may_fail() as e:
     payer.tx(ix)
 
 assert e.value == MyProgram.TooSmall()       # same error, same code
@@ -145,8 +145,8 @@ when they matter:
 assert e.value == MyProgram.TooSmall and e.value.instruction_index == 0
 ```
 
-Prefer `must_revert(MyProgram.TooSmall)` when the call *must* fail — it also
-asserts that a revert happened at all, which a post-hoc `==` cannot.
+Prefer `must_fail(MyProgram.TooSmall)` when the call *must* fail — it also
+asserts that a failure happened at all, which a post-hoc `==` cannot.
 
 To register a hand-written error family (no IDL), subclass `ProgramError` and call `register_errors`:
 
