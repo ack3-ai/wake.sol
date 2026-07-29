@@ -2,6 +2,12 @@
   <img src="docs/assets/wake-sol-cover.png" alt="wake.sol — a Python testing and fuzzing harness for Solana programs" width="1200">
 </p>
 
+<p align="center">
+  <a href="docs/index.md"><strong>Documentation</strong></a>
+  ·
+  <a href="https://ack3.ai"><strong>Built by ack3</strong></a>
+</p>
+
 # wake.sol
 
 A Python testing and fuzzing harness for Solana programs, backed by
@@ -96,6 +102,11 @@ long fuzzing campaigns. To get a wheel rather than an editable install,
 The [harness guide](docs/index.md) is the reference — start with
 [§1 Getting started](docs/01-getting-started.md), then
 [§8 Fuzzing](docs/08-fuzzing.md) for the fuzzer.
+
+## Built by ack3
+
+wake.sol is built and maintained by [ack3](https://ack3.ai), the security
+engineering team behind the Wake development and testing framework.
 
 ## License
 
