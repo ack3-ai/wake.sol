@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/assets/wake-sol-cover.png" alt="wake.sol — a Python testing and fuzzing harness for Solana programs" width="1200">
+</p>
+
 # wake.sol
 
 A Python testing and fuzzing harness for Solana programs, backed by
