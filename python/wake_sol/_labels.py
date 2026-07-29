@@ -31,6 +31,8 @@ WELL_KNOWN: dict[str, str] = {
     "Sysvar1nstructions1111111111111111111111111": "Sysvar: Instructions",
     "SysvarStakeHistory1111111111111111111111111": "Sysvar: StakeHistory",
     "SysvarEpochSchedu1e111111111111111111111111": "Sysvar: EpochSchedule",
+    "SysvarS1otHashes111111111111111111111111111": "Sysvar: SlotHashes",
+    "SysvarRewards111111111111111111111111111111": "Sysvar: Rewards",
 }
 
 #: User-assigned identity labels (pubkey base58 -> name).

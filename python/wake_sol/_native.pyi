@@ -5,11 +5,13 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Generic, TypeAlias, overload
 
-from typing_extensions import TypeVar, deprecated
+from typing_extensions import TypeVar
 
 from wake_sol._codec import u64
 from wake_sol._errors import TransactionFailed
 from wake_sol._precompiles import PrecompileInstruction, SignedMessage
+from wake_sol._programs.system import System
+from wake_sol._programs.token import Token
 
 #: The decoded-return-value type carried by `Instruction` / `TransactionResult`.
 #: Covariant (so `Instruction[u64]` is-an `Instruction[object]` — required for the
@@ -368,152 +370,6 @@ class TracedInstruction:
 
     def __repr__(self) -> str: ...
 
-class System:
-    """Builder namespace for System Program instructions (via `svm.system`).
-
-    For each account slot: a bare address gets the instruction's required
-    signer/writable flags; an explicit `AccountMeta` is used verbatim.
-    """
-
-    def transfer(
-        self, from_: MetaLike, to: MetaLike, lamports: int
-    ) -> Instruction:
-        """Transfer `lamports` from `from_` to `to`."""
-        ...
-
-    def create_account(
-        self,
-        lamports: int,
-        *,
-        from_: MetaLike,
-        to: MetaLike,
-        owner: AddressLike,
-        space: int,
-    ) -> Instruction:
-        """Create account `to`, funded by `from_`, owned by `owner`, with `space`
-        bytes of data, seeded with `lamports` lamports (use
-        `svm.minimum_balance_for_rent_exemption(space)` for the rent-exempt
-        minimum)."""
-        ...
-
-    def assign(self, account: MetaLike, owner: AddressLike) -> Instruction:
-        """Reassign `account` to the owning program `owner`."""
-        ...
-
-    def allocate(self, account: MetaLike, space: int) -> Instruction:
-        """Allocate `space` bytes of data for `account`."""
-        ...
-
-class Token:
-    """Builder namespace for SPL Token instructions (via `svm.token`).
-
-    For each account slot: a bare address gets the instruction's required
-    signer/writable flags; an explicit `AccountMeta` is used verbatim. The
-    same builders serve classic Token and Token-2022 (the program ID differs).
-    """
-
-    @property
-    def program_id(self) -> Pubkey:
-        """The program ID this builder targets (classic Token, or Token-2022)."""
-        ...
-
-    def initialize_mint2(
-        self,
-        mint: MetaLike,
-        mint_authority: AddressLike,
-        decimals: int,
-        freeze_authority: AddressLike | None = ...,
-    ) -> Instruction:
-        """Initialize `mint` with `decimals`. The mint authority and optional
-        freeze authority are written into the mint data, not passed as
-        account slots."""
-        ...
-
-    def initialize_account3(
-        self, account: MetaLike, mint: MetaLike, owner: AddressLike
-    ) -> Instruction:
-        """Initialize the token `account` to hold `mint`, owned by `owner`."""
-        ...
-
-    def mint_to_checked(
-        self,
-        mint: MetaLike,
-        account: MetaLike,
-        authority: MetaLike,
-        amount: int,
-        decimals: int,
-    ) -> Instruction:
-        """Mint `amount` base units of `mint` into the token `account`, signed by
-        `authority`; verifies `decimals` matches the mint."""
-        ...
-
-    def transfer_checked(
-        self,
-        source: MetaLike,
-        mint: MetaLike,
-        destination: MetaLike,
-        authority: MetaLike,
-        amount: int,
-        decimals: int,
-    ) -> Instruction:
-        """Transfer `amount` base units from `source` to `destination`, signed
-        by `authority`; verifies `mint` and `decimals`."""
-        ...
-
-    @deprecated("unchecked transfer; prefer transfer_checked")
-    def transfer(
-        self,
-        source: MetaLike,
-        destination: MetaLike,
-        authority: MetaLike,
-        amount: int,
-    ) -> Instruction:
-        """Transfer `amount` base units from `source` to `destination`, signed
-        by `authority`. Unchecked — prefer `transfer_checked`."""
-        ...
-
-    def burn_checked(
-        self,
-        account: MetaLike,
-        mint: MetaLike,
-        authority: MetaLike,
-        amount: int,
-        decimals: int,
-    ) -> Instruction:
-        """Burn `amount` base units of `mint` from `account`, signed by
-        `authority`; verifies `decimals`."""
-        ...
-
-    def close_account(
-        self, account: MetaLike, destination: MetaLike, owner: MetaLike
-    ) -> Instruction:
-        """Close `account`, sending its rent lamports to `destination`; signed
-        by `owner`."""
-        ...
-
-    def approve(
-        self, source: MetaLike, delegate: MetaLike, authority: MetaLike, amount: int
-    ) -> Instruction:
-        """Delegate up to `amount` base units of `source` to `delegate`, signed
-        by `authority` (the source account's owner)."""
-        ...
-
-    def revoke(self, source: MetaLike, authority: MetaLike) -> Instruction:
-        """Revoke any existing delegation on `source`, signed by `authority`
-        (the source account's owner)."""
-        ...
-
-    def create_ata(
-        self, funder: AddressLike, owner: AddressLike, mint: AddressLike
-    ) -> Instruction:
-        """Create the associated token account for `owner` + `mint`, funded by
-        `funder` (targets the Associated Token Account program)."""
-        ...
-
-    def ata_address(self, owner: AddressLike, mint: AddressLike) -> Pubkey:
-        """Derive the associated token account address for `owner` + `mint`."""
-        ...
-
 class AddressLookupTable:
     """Builder namespace for the official Address Lookup Table program
     instructions (via `svm.address_lookup_table`). These construct the real
@@ -637,7 +493,8 @@ class LiteSVM:
         """Create an SVM. `sigverify` enforces transaction signatures;
         `blockhash_check` enforces recent-blockhash validity (both on by default).
         `transaction_history` (on by default) keeps litesvm's per-signature dedup
-        and `get_transaction` log; turn it off to allow duplicate transactions.
+        (and the history log behind it); turn it off to allow duplicate
+        transactions.
 
         The runtime starts from **mainnet-beta's feature set** (a pinned snapshot),
         so behavior matches mainnet. `activate` / `deactivate` are feature-gate
@@ -648,17 +505,32 @@ class LiteSVM:
         ...
 
     def reset(self) -> None:
-        """**Cheatcode.** Wipe all accounts back to genesis, keeping the original config."""
+        """**Cheatcode.** Wipe all accounts (and sysvars) back to genesis.
+
+        Config is kept, not restored: the *current* `sigverify` /
+        `blockhash_check` / `transaction_history` values carry over, as does any
+        `fork(...)` configuration. The one thing reverted is the feature set —
+        back to the construction-time one, dropping live
+        `activate_features` / `deactivate_features` deltas."""
         ...
 
     @property
-    def system(self) -> System:
-        """Builder namespace for System Program instructions."""
+    def system(self) -> type[System]:
+        """The built-in System Program builder — the *class* from
+        `wake_sol._programs.system`, not an instance. Its builders are
+        classmethods and pure functions of their arguments (data args
+        positional, accounts keyword-only:
+        `svm.system.transfer(lamports, from_=…, to=…)`), so there is nothing to
+        bind per access."""
         ...
 
     @property
-    def token(self) -> Token:
-        """Builder namespace for SPL Token instructions."""
+    def token(self) -> type[Token]:
+        """The built-in SPL Token builder — the *class* from
+        `wake_sol._programs.token`, not an instance (see `system`). It targets
+        classic Token; Token-2022 shares the same base instruction set for
+        *decoding* (both program ids register it), but this builder's
+        `program_id` is classic Token."""
         ...
 
     @property
@@ -672,11 +544,11 @@ class LiteSVM:
     @property
     def transaction_history(self) -> bool:
         """Whether the per-signature transaction-history dedup is on. When off,
-        litesvm no longer raises `AlreadyProcessed` for a repeated transaction
-        signature (byte-identical txs execute again) and `get_transaction(sig)`
-        returns nothing. Setting it toggles in place, preserving account state;
-        re-enabling restores the default history window. The fuzz engine disables
-        it for a run so repeated identical actions aren't rejected.
+        litesvm keeps no history, so it no longer raises `AlreadyProcessed` for a
+        repeated transaction signature — byte-identical txs execute again.
+        Setting it toggles in place, preserving account state; re-enabling
+        restores the default history window. The fuzz engine disables it for a
+        run so repeated identical actions aren't rejected.
 
         With this **and** `sigverify` both off, transaction signatures are neither
         verified nor used as a dedup key, so `tx`/`simulate` skip ed25519 signing
@@ -871,7 +743,8 @@ class LiteSVM:
         accounts always win over the fork (`set_account` / `add_program` are never
         overwritten). Forking uses the SVM's own feature set (mainnet parity by
         default; diverge via the constructor's `activate`/`deactivate`) — it is
-        *not* fetched from the forked chain. See `design/forking-spec/`."""
+        *not* fetched from the forked chain, so it can lag the fork slot's actual
+        active features."""
         ...
 
     def unfork(self) -> None:
@@ -1139,14 +1012,14 @@ class Account:
         commits nothing (SVM state is unchanged).
 
         The transaction is built and signed exactly like `tx` (identical signing
-        model — `signers` is the same fallback supply of keys), so the fee payer
-        still matters: it is the message's fee-payer slot, the default signer,
-        and must have a keypair. Only the final step differs — the tx is run
-        against current state and the result discarded, so balances/accounts are
-        not mutated and `signature` is `None`. The returned result still carries
-        `logs`, `return_data`, `compute_units_consumed`, `error`, and
-        `call_trace`. Use it to inspect logs / CUs / return data without
-        spending the transaction.
+        model — `signers` is the same fallback supply of keys, and the same
+        `sigverify`-off carve-out applies), so the fee payer still matters: it is
+        the message's fee-payer slot and the default signer. Only the final step
+        differs — the tx is run against current state and the result discarded,
+        so balances/accounts are not mutated and `signature` is `None`. The
+        returned result still carries `logs`, `raw_return_value` /
+        `return_value`, `compute_units_consumed`, `error`, and `call_trace`. Use
+        it to inspect logs / CUs / return data without spending the transaction.
         """
         ...
 
@@ -1198,4 +1071,15 @@ def secp256r1_public_key(secret: bytes) -> bytes:
 def secp256r1_sign(secret: bytes, message: bytes) -> bytes:
     """ECDSA/P-256 sign over SHA-256, low-S normalized; returns a 64-byte
     compact signature."""
+    ...
+
+# --- transaction-timing counters (benchmarking; see src/perf.rs) ------------- #
+def perf_snapshot() -> dict[str, int]:
+    """Process-global nanosecond totals per `Account.tx` phase plus `tx_count`:
+    `materialize_ns`, `compile_ns`, `sign_ns`, `hydrate_ns`, `send_ns`
+    (litesvm engine time), `resultbuild_ns`, `deliver_ns`."""
+    ...
+
+def perf_reset() -> None:
+    """Zero every timing counter (call before a measured run)."""
     ...

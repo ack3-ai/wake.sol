@@ -10,11 +10,12 @@ shares the classic base instruction set; both program ids register it.
 from __future__ import annotations
 
 import struct
-from typing import Optional
+from typing import Optional, Sequence
 
 from .._codec import (
     AccountSlot,
     InstructionMeta,
+    MetaLike,
     Serialization,
     as_meta,
     build_interface_from_module,
@@ -84,7 +85,8 @@ class Token:
     ))
     def initialize_mint2(cls, decimals: u8, mint_authority: pubkey,
                          freeze_authority: Optional[pubkey] = None, *,
-                         mint, remaining_accounts=()) -> Instruction:
+                         mint: MetaLike,
+                         remaining_accounts: Sequence[MetaLike] = ()) -> Instruction:
         data = bytes([0x14, decimals]) + _pk(mint_authority)
         data += (b"\x01" + _pk(freeze_authority)) if freeze_authority is not None else b"\x00"
         metas = build_metas(cls.program_id, slot(mint, False, True, False))
@@ -96,8 +98,8 @@ class Token:
         name="initialize_account3", discriminator=b"\x12", serialization=Serialization.PACK,
         accounts=(AccountSlot("account", is_writable=True), AccountSlot("mint")),
     ))
-    def initialize_account3(cls, owner: pubkey, *, account, mint,
-                            remaining_accounts=()) -> Instruction:
+    def initialize_account3(cls, owner: pubkey, *, account: MetaLike, mint: MetaLike,
+                            remaining_accounts: Sequence[MetaLike] = ()) -> Instruction:
         data = b"\x12" + _pk(owner)
         metas = build_metas(cls.program_id,
                             slot(account, False, True, False),
@@ -113,8 +115,9 @@ class Token:
                   AccountSlot("authority", is_signer=True)),
     ))
     def transfer_checked(cls, amount: u64, decimals: u8, *,
-                         source, mint, destination, authority,
-                         remaining_accounts=()) -> Instruction:
+                         source: MetaLike, mint: MetaLike, destination: MetaLike,
+                         authority: MetaLike,
+                         remaining_accounts: Sequence[MetaLike] = ()) -> Instruction:
         data = b"\x0c" + struct.pack("<QB", amount, decimals)
         metas = build_metas(cls.program_id,
                             slot(source, False, True, False),
@@ -131,8 +134,9 @@ class Token:
                   AccountSlot("destination", is_writable=True),
                   AccountSlot("authority", is_signer=True)),
     ))
-    def transfer(cls, amount: u64, *, source, destination, authority,
-                 remaining_accounts=()) -> Instruction:
+    def transfer(cls, amount: u64, *, source: MetaLike, destination: MetaLike,
+                 authority: MetaLike,
+                 remaining_accounts: Sequence[MetaLike] = ()) -> Instruction:
         data = b"\x03" + struct.pack("<Q", amount)
         metas = build_metas(cls.program_id,
                             slot(source, False, True, False),
@@ -149,7 +153,8 @@ class Token:
                   AccountSlot("authority", is_signer=True)),
     ))
     def mint_to_checked(cls, amount: u64, decimals: u8, *,
-                        mint, account, authority, remaining_accounts=()) -> Instruction:
+                        mint: MetaLike, account: MetaLike, authority: MetaLike,
+                        remaining_accounts: Sequence[MetaLike] = ()) -> Instruction:
         data = b"\x0e" + struct.pack("<QB", amount, decimals)
         metas = build_metas(cls.program_id,
                             slot(mint, False, True, False),
@@ -166,7 +171,8 @@ class Token:
                   AccountSlot("authority", is_signer=True)),
     ))
     def burn_checked(cls, amount: u64, decimals: u8, *,
-                     account, mint, authority, remaining_accounts=()) -> Instruction:
+                     account: MetaLike, mint: MetaLike, authority: MetaLike,
+                     remaining_accounts: Sequence[MetaLike] = ()) -> Instruction:
         data = b"\x0f" + struct.pack("<QB", amount, decimals)
         metas = build_metas(cls.program_id,
                             slot(account, False, True, False),
@@ -182,8 +188,8 @@ class Token:
                   AccountSlot("destination", is_writable=True),
                   AccountSlot("owner", is_signer=True)),
     ))
-    def close_account(cls, *, account, destination, owner,
-                      remaining_accounts=()) -> Instruction:
+    def close_account(cls, *, account: MetaLike, destination: MetaLike, owner: MetaLike,
+                      remaining_accounts: Sequence[MetaLike] = ()) -> Instruction:
         data = b"\x09"
         metas = build_metas(cls.program_id,
                             slot(account, False, True, False),
@@ -198,8 +204,9 @@ class Token:
         accounts=(AccountSlot("source", is_writable=True), AccountSlot("delegate"),
                   AccountSlot("authority", is_signer=True)),
     ))
-    def approve(cls, amount: u64, *, source, delegate, authority,
-                remaining_accounts=()) -> Instruction:
+    def approve(cls, amount: u64, *, source: MetaLike, delegate: MetaLike,
+                authority: MetaLike,
+                remaining_accounts: Sequence[MetaLike] = ()) -> Instruction:
         data = b"\x04" + struct.pack("<Q", amount)
         metas = build_metas(cls.program_id,
                             slot(source, False, True, False),
@@ -214,7 +221,8 @@ class Token:
         accounts=(AccountSlot("source", is_writable=True),
                   AccountSlot("authority", is_signer=True)),
     ))
-    def revoke(cls, *, source, authority, remaining_accounts=()) -> Instruction:
+    def revoke(cls, *, source: MetaLike, authority: MetaLike,
+               remaining_accounts: Sequence[MetaLike] = ()) -> Instruction:
         data = b"\x05"
         metas = build_metas(cls.program_id,
                             slot(source, False, True, False),
@@ -224,13 +232,13 @@ class Token:
 
     # ---- ATA convenience (targets the Associated Token Account program) ----
     @classmethod
-    def ata_address(cls, owner, mint) -> Pubkey:
+    def ata_address(cls, owner: MetaLike, mint: MetaLike) -> Pubkey:
         addr, _bump = Pubkey.find_program_address(
             [_pk(owner), _pk(cls.program_id), _pk(mint)], ATA_PROGRAM)
         return addr
 
     @classmethod
-    def create_ata(cls, funder, owner, mint) -> Instruction:
+    def create_ata(cls, funder: MetaLike, owner: MetaLike, mint: MetaLike) -> Instruction:
         ata = cls.ata_address(owner, mint)
         metas = [
             AccountMeta(funder, True, True),

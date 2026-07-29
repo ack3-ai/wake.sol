@@ -65,9 +65,10 @@ from ._errors import (
 #: ``LiteSVM()``.
 svm = _default_svm()
 
-#: Process-global random source. The ``wake-sol test`` CLI reseeds this
-#: deterministically before every test (base seed + test node id), so test
-#: randomness is reproducible regardless of run order.
+#: Process-global random source. The pytest plugin (active under plain
+#: ``pytest`` as well as ``wake-sol test``) reseeds this deterministically
+#: before every test (base seed + test node id), so test randomness is
+#: reproducible regardless of run order.
 random = _random.Random()
 
 __all__ = [
@@ -118,6 +119,10 @@ __all__ = [
     "svm",
     "writable",
     "writable_signer",
-    *_codec.__all__,   # width aliases + carriers + codec/builder public surface
+    # `_codec` also exports a `ProgramError` — the inert IDL-metadata record, not
+    # the exception base. The `._errors` import above (which comes last) is what
+    # `wake_sol.ProgramError` binds to; drop the codec name so it isn't listed
+    # twice. Reach the metadata record as `wake_sol._codec.ProgramError`.
+    *(n for n in _codec.__all__ if n != "ProgramError"),
     *_addresses.__all__,   # well-known program / sysvar Pubkey constants
 ]

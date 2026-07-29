@@ -10,10 +10,12 @@ bytes are unchanged from the previous Rust builder (golden-byte tested).
 from __future__ import annotations
 
 import struct
+from typing import Sequence
 
 from .._codec import (
     AccountSlot,
     InstructionMeta,
+    MetaLike,
     Serialization,
     as_meta,
     build_interface_from_module,
@@ -91,7 +93,8 @@ class System:
         accounts=(AccountSlot("from", is_signer=True, is_writable=True),
                   AccountSlot("to", is_writable=True)),
     ))
-    def transfer(cls, lamports: u64, *, from_, to, remaining_accounts=()) -> Instruction:
+    def transfer(cls, lamports: u64, *, from_: MetaLike, to: MetaLike,
+                 remaining_accounts: Sequence[MetaLike] = ()) -> Instruction:
         data = _tag(2) + struct.pack("<Q", lamports)
         metas = build_metas(PROGRAM_ID,
                             slot(from_, True, True, False),
@@ -106,7 +109,8 @@ class System:
                   AccountSlot("to", is_signer=True, is_writable=True)),
     ))
     def create_account(cls, lamports: u64, space: u64, owner: pubkey, *,
-                       from_, to, remaining_accounts=()) -> Instruction:
+                       from_: MetaLike, to: MetaLike,
+                       remaining_accounts: Sequence[MetaLike] = ()) -> Instruction:
         data = _tag(0) + struct.pack("<QQ", lamports, space) + _pk(owner)
         metas = build_metas(PROGRAM_ID,
                             slot(from_, True, True, False),
@@ -119,7 +123,8 @@ class System:
         name="assign", discriminator=_tag(1), serialization=Serialization.BINCODE,
         accounts=(AccountSlot("account", is_signer=True, is_writable=True),),
     ))
-    def assign(cls, owner: pubkey, *, account, remaining_accounts=()) -> Instruction:
+    def assign(cls, owner: pubkey, *, account: MetaLike,
+               remaining_accounts: Sequence[MetaLike] = ()) -> Instruction:
         data = _tag(1) + _pk(owner)
         metas = build_metas(PROGRAM_ID, slot(account, True, True, False))
         metas += [as_meta(m) for m in remaining_accounts]
@@ -130,7 +135,8 @@ class System:
         name="allocate", discriminator=_tag(8), serialization=Serialization.BINCODE,
         accounts=(AccountSlot("account", is_signer=True, is_writable=True),),
     ))
-    def allocate(cls, space: u64, *, account, remaining_accounts=()) -> Instruction:
+    def allocate(cls, space: u64, *, account: MetaLike,
+                 remaining_accounts: Sequence[MetaLike] = ()) -> Instruction:
         data = _tag(8) + struct.pack("<Q", space)
         metas = build_metas(PROGRAM_ID, slot(account, True, True, False))
         metas += [as_meta(m) for m in remaining_accounts]
