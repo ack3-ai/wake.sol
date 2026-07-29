@@ -55,7 +55,7 @@ Three ways to put state at an address:
 
 ```python
 # 1. airdrop lamports (creates/credits the account)
-svm.airdrop(acc, 1_000_000_000)
+svm.airdrop(acc, sol(1))          # or the lamport count itself: 1_000_000_000
 
 # 2. overwrite the whole account (lamports + data + owner + flags)
 svm.set_account(addr, lamports=2_000_000, data=b"...", owner=some_program,
@@ -66,6 +66,8 @@ acc.lamports = 2_000_000
 acc.lamports += 500        # top up
 acc.lamports -= 500        # burn
 ```
+
+Every amount here is raw **lamports**, the runtime's own unit. `sol(x)` converts from SOL when a literal count is unreadable — `sol(1)`, `sol("1.5")`, `sol("0.000000001")` (one lamport) — and `LAMPORTS_PER_SOL` is the scale itself. It converts exactly or not at all: an amount that isn't a whole number of lamports raises rather than round, since the chain has no finer unit and rounding would change the value an assertion is about. Fractions are written as strings or `Decimal`; a `float` is refused, because it does not hold a decimal amount exactly — `1.001 * 10**9` is 1000999999, a silent lamport short.
 
 All three are **cheatcodes** — they mint and burn lamports out of thin air, which no real chain permits. `acc.lamports = …` is the quietest of them: no transaction, no fee, no `TransactionResult`, just a state write. Two edges to know:
 

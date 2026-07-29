@@ -38,6 +38,8 @@ from ._codec import *  # noqa: F401,F403  (width aliases u8..u256/i8..i256/f32/f
 #                                          MetaLike, the metadata records + decorators, etc.)
 from . import _addresses as _addresses  # noqa: F401
 from ._addresses import *  # noqa: F401,F403  (SYSTEM_PROGRAM_ID, TOKEN_PROGRAM_ID, RENT_SYSVAR, …)
+from . import _units as _units  # noqa: F401
+from ._units import LAMPORTS_PER_SOL, sol
 from . import _labels as _labels  # noqa: F401  (label store; Account.label delegates here)
 from . import _programs as _programs  # noqa: F401  (registers built-in decoders)
 from . import ed25519 as ed25519  # noqa: F401  (precompile module; registers decoder)
@@ -82,6 +84,7 @@ __all__ = [
     "EpochSchedule",
     "FuzzTest",
     "Instruction",
+    "LAMPORTS_PER_SOL",
     "LiteSVM",
     "Inline",
     "Offsets",
@@ -116,6 +119,7 @@ __all__ = [
     "random",
     "readonly",
     "signer",
+    "sol",
     "svm",
     "writable",
     "writable_signer",
