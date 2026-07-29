@@ -13,6 +13,7 @@ import hashlib
 import io
 import os
 import sys
+from importlib.machinery import PathFinder
 from pathlib import Path
 from typing import Callable, List, Optional, Tuple
 
@@ -121,12 +122,25 @@ def _default_breakpoints_to_ipdb(config: pytest.Config) -> None:
     An explicit ``--pdbcls`` always wins, so ``--pdbcls=pdb:Pdb`` restores stock
     pdb. IPython arrives with the ``ipdb`` runtime dependency, but degrade
     silently if it is somehow absent.
+
+    The availability check must not *import* IPython. ``pytest_configure`` runs
+    with capture active — ``sys.stdin`` is pytest's ``DontReadFromInput`` — and
+    ``IPython.terminal.interactiveshell`` freezes a module-level "are the
+    streams a tty" answer the first time it is imported, so importing it here
+    pins that answer to False for the whole process and costs the post-mortem
+    its completion and history (see :mod:`wake_sol._debug`). ``PathFinder``
+    answers from ``sys.path`` alone; ``importlib.util.find_spec`` would not do,
+    because it imports parent packages — and a bare ``import IPython`` already
+    pulls the terminal shell in. Naming the class as ``(module, attr)`` strings
+    keeps pytest's own import lazy: it happens when a breakpoint fires.
     """
     if config.getoption("usepdb_cls", None):
         return  # the user asked for a specific debugger
     try:
-        import IPython.terminal.debugger  # noqa: F401
+        available = PathFinder().find_spec("IPython") is not None
     except Exception:
+        available = False
+    if not available:
         return
     config.option.usepdb_cls = ("IPython.terminal.debugger", "TerminalPdb")
 

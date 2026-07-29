@@ -20,6 +20,9 @@ codegen, Rust-raised :class:`~wake_sol._errors.TransactionFailed`):
 * Reproduction is surfaced by the pytest plugin as ``pytest --seed <base>
   "<nodeid>"`` (this harness derives the per-test seed; there is no mutable
   global seed to inject as a pdb command the way wake does).
+* The debugger class is named explicitly instead of taken from ipdb's
+  ``shell.debugger_cls`` — see the note above :func:`_init_pdb`. Under pytest,
+  that dispatch answers with a completion-less, history-less ``Pdb``.
 
 Multiprocess note: the multiprocess runner (``wake-sol test -P N``, see
 :mod:`wake_sol._mp_worker`) wires the debugger across processes through the
@@ -83,6 +86,67 @@ def reset_exception_handled() -> None:
 
 
 # --------------------------------------------------------------------------- #
+# Debugger construction.
+#
+# ipdb's own `_init_pdb` asks the IPython shell which class to use, and the
+# answer is `Pdb if shell.simple_prompt else TerminalPdb`. `simple_prompt`
+# defaults from a module constant IPython computes at *import* time from
+# `sys.std{in,out,err}.isatty()`, so one import under pytest's capture — where
+# stdin is `DontReadFromInput` — pins it False for the rest of the process and
+# the post-mortem silently degrades to a plain `Pdb`: its `completekey` defaults
+# to None, so `cmd` installs no readline completion, and without prompt_toolkit
+# there is no `~/.pdbhistory` either. Suspending capture before attaching cannot
+# undo it; the constant is already baked.
+#
+# Naming `TerminalPdb` outright sidesteps that: the terminal debugger keeps its
+# own `_use_simple_prompt`, which consults only `IPY_TEST_SIMPLE_PROMPT`. The tty
+# question is then asked here, at construction time, when the answer is current.
+# --------------------------------------------------------------------------- #
+
+
+def _stdio_is_tty():
+    """Whether stdin *and* stdout are a terminal right now. Conservative in the
+    same way as IPython's own probe: a missing, closed, or exotic stream is not
+    a terminal."""
+    for stream in (sys.stdin, sys.stdout):
+        try:
+            if not stream or not stream.isatty():
+                return False
+        except (AttributeError, ValueError):  # no isatty(), or a closed stream
+            return False
+    return True
+
+
+def _init_pdb(context=None, commands=()):
+    """Build the debugger — replaces ``ipdb.__main__._init_pdb`` (see above).
+
+    Defers to ipdb's choice when there is no terminal to drive: piped stdio
+    gives prompt_toolkit nothing to talk to, and a plain ``Pdb`` is then the
+    right answer rather than a degraded one.
+    """
+    import os
+
+    from ipdb.__main__ import get_context_from_config
+
+    if context is None:
+        context = os.getenv("IPDB_CONTEXT_SIZE", get_context_from_config())
+
+    if not _stdio_is_tty():
+        from ipdb.__main__ import _init_pdb as _ipdb_init_pdb
+
+        return _ipdb_init_pdb(context, list(commands))
+
+    from IPython.terminal.debugger import TerminalPdb
+
+    try:
+        p = TerminalPdb(context=context)
+    except TypeError:  # parity with ipdb: tolerate a debugger without `context`
+        p = TerminalPdb()
+    p.rcLines.extend(commands)
+    return p
+
+
+# --------------------------------------------------------------------------- #
 # REPL handler (verbatim from wake/utils/pdb_handler.py).
 # --------------------------------------------------------------------------- #
 
@@ -93,7 +157,7 @@ def breakpoint_handler(frame=None, context=None, cond=True):
     for the multiprocess runner and users who point ``PYTHONBREAKPOINT`` here."""
     import inspect  # noqa: F401  (parity with wake's import)
 
-    from ipdb.__main__ import _init_pdb, wrap_sys_excepthook
+    from ipdb.__main__ import wrap_sys_excepthook
 
     if not cond:
         return
@@ -219,7 +283,6 @@ def attach_debugger(
 
     import traceback
 
-    from ipdb.__main__ import _init_pdb
     from rich.console import Console
     from rich.traceback import Traceback
 

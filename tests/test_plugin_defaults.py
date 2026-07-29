@@ -98,6 +98,68 @@ def test_explicit_pdbcls_still_wins(pytester: pytest.Pytester) -> None:
     assert "(Pdb)" in res.stdout and "ipdb>" not in res.stdout
 
 
+def test_ipdb_routing_does_not_import_ipython(pytester: pytest.Pytester) -> None:
+    """Routing `breakpoint()` must not *import* IPython at configure time.
+
+    `IPython.terminal.interactiveshell` computes an "are the streams a tty"
+    answer once, at import. Imported from `pytest_configure` — capture active,
+    `sys.stdin` a `DontReadFromInput` — it stays False for the whole process, and
+    ipdb's `shell.debugger_cls` then hands the `--attach` post-mortem a plain
+    `Pdb`: no tab completion, no `~/.pdbhistory`.
+    """
+    pytester.makepyfile(
+        "import sys\n"
+        "def test_ipython_untouched():\n"
+        "    assert 'IPython' not in sys.modules\n"
+    )
+    res = _run_bare(pytester.path)
+    assert res.returncode == 0, res.stdout + res.stderr
+
+
+def test_debugger_is_terminal_pdb_on_a_tty(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Given a terminal, the debugger built for the post-mortem is the
+    prompt_toolkit one — the completion and history the plain `Pdb` lacks. The
+    tty itself is stubbed; what matters is which class the choice lands on."""
+    from wake_sol import _debug
+
+    monkeypatch.setattr(_debug, "_stdio_is_tty", lambda: True)
+    p = _debug._init_pdb(commands=["up 2"])
+
+    try:
+        assert type(p).__name__ == "TerminalPdb"
+        assert p.pt_app.completer is not None      # tab completion
+        assert p.pt_app.history is not None        # persistent history
+        assert p.rcLines == ["up 2"]               # the "land on the user's frame" cmd
+    finally:
+        # A real prompt session was built: close what it opened, so the test
+        # leaves no event loop or idle worker thread behind.
+        p.pt_loop.close()
+        p.thread_executor.shutdown(wait=False)
+
+
+def test_debugger_falls_back_without_a_tty(monkeypatch: pytest.MonkeyPatch) -> None:
+    """With no terminal there is nothing for prompt_toolkit to drive, so hand the
+    choice back to ipdb rather than force a session that cannot read input.
+
+    Asserts the delegation, not the class it returns: ipdb's answer depends on
+    process-global state (whether IPython was imported on a tty), so pinning the
+    class would make this pass or fail for reasons unrelated to the fallback."""
+    import ipdb.__main__
+
+    from wake_sol import _debug
+
+    calls = []
+    monkeypatch.setattr(_debug, "_stdio_is_tty", lambda: False)
+    monkeypatch.setattr(ipdb.__main__, "_init_pdb",
+                        lambda context=None, commands=[]: calls.append((context, commands)))
+
+    _debug._init_pdb(commands=["up 2"])
+    assert len(calls) == 1
+    context, commands = calls[0]
+    assert context is not None       # ipdb's own context resolution still applied
+    assert commands == ["up 2"]
+
+
 def test_sys_path_insert_is_cleaned_up(pytester: pytest.Pytester) -> None:
     """Run in-process so the hook touches *this* sys.path, and check it tidies up."""
     pytester.makepyfile("def test_noop():\n    pass\n")
