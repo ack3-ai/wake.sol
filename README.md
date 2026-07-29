@@ -29,7 +29,8 @@ assert res.success
 
 There is no published release yet, so install from a checkout. The package is a
 Rust/pyo3 extension built with [maturin](https://www.maturin.rs/), so a Rust
-toolchain (1.85+, for edition 2024) is needed alongside Python 3.9+.
+toolchain (1.89+, the floor the `solana-*` crates set) is needed alongside
+Python 3.9+.
 
 ```bash
 uv sync                    # create .venv and install the Python dependencies

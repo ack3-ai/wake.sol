@@ -2,6 +2,11 @@
 name = "wake_sol"
 version = "0.1.0"
 edition = "2024"
+# Edition 2024 alone needs only 1.85; the floor is set by the solana-* crates in
+# the graph (solana-address, solana-hash, solana-signature, … all declare 1.89).
+# Stated so an older toolchain fails with "requires rustc 1.89" instead of an
+# edition parse error. Re-check on a solana/agave version bump.
+rust-version = "1.89"
 
 [lib]
 name = "wake_sol"
