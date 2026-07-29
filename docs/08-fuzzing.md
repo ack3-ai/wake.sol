@@ -60,7 +60,7 @@ def test_fuzz_counter():                      # a normal pytest test
     CounterFuzz.run(sequences_count=4, flows_count=15)
 ```
 
-Run it with `pytest tests/test_fuzz_counter.py` (add `-s` to see the flow-stats table below).
+Run it with `pytest tests/test_fuzz_counter.py`; the flow-stats table below prints in the summary either way (no `-s` needed).
 
 ## Flows
 
@@ -173,9 +173,11 @@ Every run reports a per-flow **stats table** and flags dead flows, in the `wake.
 On failure, the engine adds context before re-raising, and the plugin names the failing step in the summary:
 
 ```
-Failed: CounterFuzz in counter_matches_model at sequence 2, flow 7
+Failed: CounterFuzz in invariant counter_matches_model at sequence 2, flow 7
 Base seed: 3d4ad2957d262442
 ```
+
+(The failing step is named as `flow <name>` or `invariant <name>`, whichever raised.)
 
 Re-run with `pytest --seed <hex>` (add the test's node id to run only it) to reproduce exactly. Run with `--attach` to drop into an ipdb post-mortem at the failing frame — it prints the full `pytest --seed <hex> "<nodeid>"` line for you.
 

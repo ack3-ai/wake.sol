@@ -1,4 +1,4 @@
-"""Network-free tests for the structured-error subsystem (design/pytypes §10.2).
+"""Network-free tests for the structured-error subsystem (``docs/11-errors.md``).
 
 Covers the raise-by-default contract: a failed tx raises the resolved
 ``TransactionFailed`` subclass (caught by type), carrying the error scalars flat

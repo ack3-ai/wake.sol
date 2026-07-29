@@ -61,9 +61,8 @@ class TransactionFailed(Exception):
         error it is. Compare those fields explicitly when they matter.
 
         This is sugar over the type matching that ``must_revert``/``may_revert``
-        already do — it does not reintroduce the ``ResolvedError`` value model
-        (no ``program_id``, no CPI attribution); see the superseded-design note
-        in ``design/pytypes-generator-spec/10-events-errors-return-data.md``.
+        already do — deliberately *not* a value model: no ``program_id``, no CPI
+        attribution, nothing beyond the type and the code.
         """
         if isinstance(other, type):
             if issubclass(other, TransactionFailed):

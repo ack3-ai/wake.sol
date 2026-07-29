@@ -64,7 +64,7 @@ res.call_trace               # CallTrace — the decoded instruction tree (§4)
 
 > **Tip:** `from wake_sol import print` re-exports a Rich console's `print`, so `print(res.call_trace)` (and any `__rich__` object) renders colored. It intentionally shadows the builtin `print` in that test module. **Rich markup is off by default** — a stray `[..]` in a label or log won't be parsed (and can't raise); pass `markup=True` to a call if you want markup.
 >
-> Under `pytest -v` (or `wake-sol test -v`), call traces print **full addresses** instead of the `3Ftw…HBaY` ellipsis, and the plugin installs Rich's traceback handler.
+> Under `pytest -v` (or `wake-sol test -v`), call traces print **full addresses** instead of the `3Ftw…HBaY` ellipsis. The plugin also installs Rich's traceback handler (always), with locals shown under `-vv`.
 
 To try a transaction **without committing** state (inspect logs / CUs / return data), use [`simulate`](03-transactions.md) instead of `tx`:
 

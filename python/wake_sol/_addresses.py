@@ -1,6 +1,9 @@
 """Canonical well-known Solana program / sysvar addresses, as ``Pubkey``
-constants. The single source of truth for these; the generator's name->address
-table (`_gen/wellknown.py`) and the label map derive from / mirror these.
+constants. The single source of truth for these: the generator's name->address
+table (`_gen/wellknown.py`) imports them directly, and every address here also
+has a display name in the call-trace label map (`_labels.WELL_KNOWN`, which
+additionally names a few programs with no constant of their own — Memo, Compute
+Budget, Stake, Vote).
 
 Sysvars are read-only accounts holding cluster parameters (rent, clock, …). To
 *compute* rent-exemption you don't read `RENT_SYSVAR` yourself — use

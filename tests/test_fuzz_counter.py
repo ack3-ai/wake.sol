@@ -8,8 +8,9 @@ Doubles as the canonical example of the fuzzing API:
   ``wake_sol.random`` (so a run reproduces from ``--seed``);
 * check on-chain state against a Python model in an ``@invariant``.
 
-Run just this: ``pytest tests/test_fuzz_counter.py`` (add ``-s`` to see the
-flow-stats table). Reproduce a failure with ``pytest --seed <hex> ...``.
+Run just this: ``pytest tests/test_fuzz_counter.py`` — the flow-stats table
+prints in the ``wake.sol`` summary section either way (no ``-s`` needed).
+Reproduce a failure with ``pytest --seed <hex> ...``.
 """
 
 from pathlib import Path

@@ -21,7 +21,7 @@ def simulate(self, *ixs: Instruction,
              lookup_tables: Sequence[AddressLike] = ()) -> TransactionResult: ...
 ```
 
-`self` (the account you call it on) is the **fee payer** and must hold a keypair. The recent blockhash is taken from the bound SVM. Passing `lookup_tables=` builds a **v0** transaction that sources accounts from those Address Lookup Tables; omitting it builds a legacy transaction — see [§12](12-lookup-tables.md).
+`self` (the account you call it on) is the **fee payer** and must hold a keypair (unless the SVM has `sigverify` off — see below). The recent blockhash is taken from the bound SVM. Passing `lookup_tables=` builds a **v0** transaction that sources accounts from those Address Lookup Tables; omitting it builds a legacy transaction — see [§12](12-lookup-tables.md).
 
 ## `tx` vs `simulate`
 
@@ -45,6 +45,8 @@ Two independent things:
    3. the process-global keystore of every account ever made with `Account.new()` / `Account.from_secret()`.
 
    If none yields a key, `tx`/`simulate` raises `no keypair known for required signer <addr>; pass it via signers=`.
+
+   **Except with `sigverify` off.** When the bound SVM has `svm.sigverify = False`, an unresolvable key — the fee payer included — is no longer an error: that signature slot is left as a placeholder and the runtime accepts it. That is how you send a transaction as an account you hold no key for, to exercise a program's own signer checks (see [§5](05-svm-and-sysvars.md)).
 
 So `signers=` is a **fallback supply of keys** for a required signer the harness can't otherwise resolve. Because created signing accounts auto-register, you usually don't need it:
 

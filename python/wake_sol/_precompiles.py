@@ -119,7 +119,13 @@ class Offsets:
     """The raw per-entry offset struct, for the ``pack`` hatch. ``*_ix`` are the
     instruction indices (``CURRENT_INSTRUCTION`` for inline on ed25519/secp256r1);
     offsets are byte positions within the referenced instruction's data. No
-    validation — deliberately able to encode pathological layouts."""
+    *semantic* validation — deliberately able to encode pathological layouts
+    (out-of-range offsets, a size that lies, indices pointing anywhere).
+
+    The one hard limit is the wire format: every field is packed, so each value
+    must fit its slot — ``0..=65535`` for the ``u16`` offsets/size, and
+    ``0..=255`` for secp256k1's ``u8`` instruction indices. Out-of-range values
+    raise ``struct.error`` at pack time rather than silently truncating."""
 
     signature_offset: int
     identity_offset: int

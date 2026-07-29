@@ -27,7 +27,7 @@ assert res.success
 - **[9 · Signing & precompiles](09-signing-and-precompiles.md)** — detached signing (`account.sign`, `secp256k1`/`secp256r1` keys), the `SignedMessage` claim, and the ed25519/secp256k1/secp256r1 verify-instruction builders (with cross-instruction `Ref`s).
 - **[10 · Return values & events](10-return-values-and-events.md)** — decoded return data (`return_value`, `decode_return`) and events (`res.events`, the `⚡` assertion surface).
 - **[11 · Errors](11-errors.md)** — the raise-by-default contract, the typed `TransactionFailed` hierarchy, `must_revert` / `may_revert`, and registering custom program errors.
-- **[12 · Address Lookup Tables](12-lookup-tables.md)** — the `create_lookup_table` cheatcode, the official ALT-program builders, and v0 transactions via `lookup_tables=`.
+- **[12 · Address Lookup Tables & v0 transactions](12-lookup-tables.md)** — the `create_lookup_table` cheatcode, the official ALT-program builders, and v0 transactions via `lookup_tables=`.
 - **[13 · Mainnet forking](13-forking.md)** — `svm.fork(...)`, offline/cache replay, `exclude=` for auditing your own build, and pinning programs (`fork_programs` / `forked_accounts`).
 - **[14 · Parallel running](14-parallel-running.md)** — `wake-sol test -P N`: N workers of the same suite (N seeds) or sharded (`--dist uniform`), per-worker seeds & logs, and aggregated results.
 

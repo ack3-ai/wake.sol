@@ -108,13 +108,15 @@ when repointing only *some* components: `sm.at(message=Ref(prog_ix), signature=I
 For adversarial layouts the ergonomic path won't produce — wrong instruction
 indices, a header count that disagrees with the entries, zero entries,
 out-of-range offsets — each module has `pack(count, entries, data)` that writes
-`[count] + entries + data` verbatim with **no validation**:
+`[count] + entries + data` verbatim with **no validation**. (The only limit is
+the wire format itself: each `Offsets` field must fit its slot — `0…65535` for
+the `u16` offsets and size, `0…255` for secp256k1's `u8` instruction indices.)
 
 ```python
 from wake_sol import Offsets
 ed25519.pack(0, [])                                  # a valid "verify nothing"
 ed25519.pack(3, [Offsets(signature_offset=16, identity_offset=48,
-                         message_offset=112, message_size=99999)],  # count/entry & size lies
+                         message_offset=112, message_size=60_000)],  # count/entry & size lies
               data=b"\x00" * 96)
 ```
 

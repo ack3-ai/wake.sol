@@ -6,8 +6,8 @@
 //! calls into this module to fetch them, then injects them via `set_account`.
 //! This module owns the JSON-RPC client (blocking `ureq`, no tokio), the disk
 //! snapshot store (offline deterministic replay), and the per-session `Fork`
-//! state (exclude sets, `seen`/negative cache, reference slot). See
-//! `design/forking-spec/`.
+//! state (exclude sets, `seen`/negative cache, reference slot). User-facing
+//! behavior is documented in `docs/13-forking.md`.
 
 use std::collections::HashSet;
 use std::fs;

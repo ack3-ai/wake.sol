@@ -67,9 +67,19 @@ Highlights of the generated surface:
 The generator is deterministic and pins provenance for every emitted module (see the `__provenance__` block and `pytypes/_manifest.json`). Quick start:
 
 ```bash
-wake-sol gen --target-idl ./idls --out ./pytypes   # generate builders for these programs
-wake-sol gen check                                 # CI drift gate
-wake-sol gen list                                  # show discovered programs
+wake-sol gen --target-idl ./target/idl --out ./pytypes   # generate builders for these programs
+wake-sol gen check                                       # CI drift gate
+wake-sol gen list                                        # show discovered programs
 ```
 
-**`--target-idl` vs `--idls`.** `--target-idl` (default `target/idl`) is the set of programs you want *builders and decoders generated for* — your own program(s), the audit target. `--idls` (default `idls`) is a **dependency**-IDL root used only to *resolve types* referenced by the targets; nothing is generated for dep-only programs. So point `--target-idl` at what you're testing. `--only <base58>` narrows generation to specific program addresses (repeatable). The other flags (`--check`, `--strict`, `--no-facts`, `--verify`, `--allow-unverified`, `-v`) are covered in the design spec.
+**`--target-idl` vs `--idls`.** `--target-idl` (default `target/idl`) is the set of programs you want *builders and decoders generated for* — your own program(s), the audit target. `--idls` (default `idls`) is a **dependency**-IDL root used only to *resolve types* referenced by the targets; nothing is generated for dep-only programs. So point `--target-idl` at what you're testing. `--only <base58>` narrows generation to specific program addresses (repeatable).
+
+The remaining flags (all listed by `wake-sol gen --help`):
+
+| Flag | Meaning |
+|---|---|
+| `--check` | regenerate in memory and diff against `--out`; writes nothing, exits 2 on drift (what `gen check` runs) |
+| `--strict` | a per-program generation refusal becomes a hard failure instead of a refusing stub |
+| `--verify` / `--allow-unverified` | the offline verification gate. Deferred for now: modules are stamped `verified=false`, `--verify` warns, and `--allow-unverified` silences that warning |
+| `--no-facts` | reserved — `*.facts.json` sidecars are not consumed yet, so this is currently a no-op |
+| `-v` | per-program generation log on stderr (repeatable) |

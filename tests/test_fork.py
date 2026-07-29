@@ -1,4 +1,4 @@
-"""Network-free tests for mainnet forking (design/forking-spec/).
+"""Network-free tests for mainnet forking (see ``docs/13-forking.md``).
 
 These exercise the fork machinery in **offline** mode against a hand-seeded
 snapshot directory — no RPC — so they run in CI. They cover: offline hydration

@@ -1,13 +1,13 @@
-"""Structured transaction errors (design/pytypes-generator-spec §10).
+"""Structured transaction errors (user-facing guide: ``docs/11-errors.md``).
 
 A failed transaction **raises** — the raised object *is* the specific error, a
 subclass of :class:`TransactionFailed`. Catch it by type::
 
-    with must_revert(marinade_finance.NonEmptyReserveData):   # exact
+    with must_revert(MyProgram.TooSmall):            # exact
         payer.tx(ix)
-    with must_revert(AnchorError.ConstraintHasOne):           # a framework constraint
+    with must_revert(AnchorError.ConstraintHasOne):  # a framework constraint
         payer.tx(ix)
-    with must_revert(marinade_finance.MarinadeFinanceError):  # any error from that program
+    with must_revert(MyProgram.Error):               # any error from that program
         payer.tx(ix)
 
 Hierarchy (the vocabulary you pass to ``must_revert`` / ``may_revert`` / catch)::

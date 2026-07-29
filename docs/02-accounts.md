@@ -16,7 +16,8 @@ a = Account.new()                       # fresh keypair → can sign
 b = Account.from_secret(secret_bytes)   # known 64-byte secret → can sign
 v = Account(some_pubkey)                # bare-address view → cannot sign
 pda, bump = Account.find_program_address([b"seed", a.pubkey.to_bytes()], program_id)
-pda2 = Account.create_program_address([b"seed", bytes([bump])], program_id)
+# the same address again, with the bump spelled out (no search)
+pda2 = Account.create_program_address([b"seed", a.pubkey.to_bytes(), bytes([bump])], program_id)
 ```
 
 All of these bind to the global `svm` unless you pass `svm=other` (see [§5](05-svm-and-sysvars.md)). Keypairs created via `Account.new()`/`from_secret()` are remembered process-wide, so the harness can sign for them automatically later (see [§3](03-transactions.md)).

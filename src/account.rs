@@ -596,13 +596,14 @@ impl PyAccount {
     /// the same shape as `tx`, but it commits **nothing** (state is unchanged).
     ///
     /// The transaction is built and signed identically to `tx` (see its signing
-    /// model — `signers` is the same fallback supply of keys), so the fee payer
-    /// still matters: it is the message's fee-payer slot, the default signer,
-    /// and must have a keypair. Only the final step differs — litesvm's
-    /// `simulate_transaction` runs the tx against current state and discards the
-    /// result, so balances/accounts are not mutated and there is no `signature`.
-    /// The returned `TransactionResult` still carries `logs`, `return_data`,
-    /// `compute_units_consumed`, `error`, and the `call_trace`.
+    /// model — `signers` is the same fallback supply of keys, and the same
+    /// `sigverify`-off carve-out applies), so the fee payer still matters: it is
+    /// the message's fee-payer slot and the default signer. Only the final step
+    /// differs — litesvm's `simulate_transaction` runs the tx against current
+    /// state and discards the result, so balances/accounts are not mutated and
+    /// there is no `signature`. The returned `TransactionResult` still carries
+    /// `logs`, `raw_return_value`/`return_value`, `compute_units_consumed`,
+    /// `error`, and the `call_trace`.
     #[pyo3(signature = (*ixs, signers = vec![], lookup_tables = vec![]))]
     fn simulate(
         &self,

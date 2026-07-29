@@ -28,7 +28,7 @@ Handy for fuzzing (e.g. submitting txs with deliberately wrong signers). Each is
 
 | Context | `transaction_history` | Behavior |
 | --- | --- | --- |
-| `LiteSVM()` / the global `svm` | **`True`** (default) | a repeated identical tx → `AlreadyProcessed`; `svm.get_transaction(sig)` works |
+| `LiteSVM()` / the global `svm` | **`True`** (default) | a repeated identical tx → `AlreadyProcessed` |
 | inside `FuzzTest.run(...)` | **`False`** (default) | repeated identical txs just execute again |
 
 Why the flip: a fuzz flow routinely re-sends the same instruction. On a real cluster you'd resubmit under a fresh recent blockhash (so a new signature); litesvm has no moving blockhash, so identical txs would otherwise collide. `run()` turns history off so a fuzzer can re-issue the same action freely. Override it per run with `MyFuzz.run(..., transaction_history=True)`, or set `svm.transaction_history` directly. The pytest plugin restores `True` before every test, so a fuzz run never leaks the setting into the next test.
@@ -36,7 +36,7 @@ Why the flip: a fuzz flow routinely re-sends the same instruction. On a real clu
 Two things to know when it's off:
 
 - A byte-identical transaction can apply **twice** — impossible on a real cluster, where a signature lands exactly once. That matches a fuzzer's intent (each flow = one real action), but **re-enable it (`transaction_history=True`) if you're specifically auditing replay / idempotency.**
-- `svm.get_transaction(sig)` returns nothing (there's no history to look up). The `TransactionResult` returned by `tx()` / `simulate()` is unaffected.
+- litesvm keeps no per-signature history while it's off, so the dedup above is the only thing that changes (the harness exposes no transaction-lookup API either way). The `TransactionResult` returned by `tx()` / `simulate()` is unaffected.
 
 If you want per-signature uniqueness *without* the dedup papercut, keep history on and rotate the blockhash yourself with `svm.expire_blockhash()` before each send — the faithful analogue of resubmitting on-chain.
 

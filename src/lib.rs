@@ -514,9 +514,14 @@ impl PyLiteSVM {
         })
     }
 
-    /// **Cheatcode.** Wipe all accounts back to genesis, restoring the
-    /// construction-time config (sigverify, blockhash checks, and feature set;
-    /// mid-life `activate_features`/`deactivate_features` changes are reverted).
+    /// **Cheatcode.** Wipe all accounts (and sysvars) back to genesis.
+    ///
+    /// Config is *kept*, not restored: the current `sigverify` /
+    /// `blockhash_check` / `transaction_history` values are carried into the new
+    /// runtime, and any `fork` configuration survives (the pytest plugin restores
+    /// the toggles and calls `unfork` itself, before this). The feature set is the
+    /// exception — it goes back to the construction-time one, so mid-life
+    /// `activate_features`/`deactivate_features` deltas are reverted.
     fn reset(&mut self) {
         // No recompile for the plain mainnet default (the common case, incl. the
         // per-test global reset); re-apply deltas only if constructed with them.
@@ -584,11 +589,10 @@ impl PyLiteSVM {
     }
 
     /// Toggle the transaction-history dedup in place, preserving all account
-    /// state. When **off**, litesvm no longer rejects a repeated transaction
-    /// signature with `AlreadyProcessed`, so byte-identical txs execute again —
-    /// what the fuzz engine wants for repeated actions. Also disables
-    /// `get_transaction(sig)` lookups. When re-enabled, restores litesvm's
-    /// default window.
+    /// state. When **off**, litesvm keeps no history, so it no longer rejects a
+    /// repeated transaction signature with `AlreadyProcessed` and byte-identical
+    /// txs execute again — what the fuzz engine wants for repeated actions. When
+    /// re-enabled, restores litesvm's default window.
     #[setter]
     fn set_transaction_history(&mut self, value: bool) {
         let svm = std::mem::take(&mut self.inner);
@@ -869,7 +873,7 @@ impl PyLiteSVM {
     /// snapshot and a cache miss is a hard error. Forking uses the SVM's own
     /// feature set (mainnet parity by default; diverge via the constructor's
     /// `activate`/`deactivate`) — it is *not* fetched from the forked chain, so
-    /// it can lag the fork slot's actual active features. See design/forking-spec/.
+    /// it can lag the fork slot's actual active features.
     #[pyo3(signature = (url = None, *, exclude = vec![], cache = None, offline = false))]
     fn fork(
         &mut self,
@@ -941,7 +945,7 @@ impl PyLiteSVM {
     /// it touched, then freeze that list here. Errors if an id is not an executable
     /// program on chain (absent, or a non-program account), so a wrong id fails
     /// loudly rather than silently under-forking. Requires forking to be enabled.
-    /// Returns the number of programs pinned. See design/forking-spec/.
+    /// Returns the number of programs pinned.
     #[pyo3(signature = (*programs))]
     fn fork_programs(&mut self, programs: Vec<Bound<'_, PyAny>>) -> PyResult<usize> {
         if self.fork.is_none() {
@@ -996,7 +1000,7 @@ impl PyLiteSVM {
     }
 
     /// Send a serialized `VersionedTransaction` (bincode bytes). Raises the
-    /// resolved `TransactionFailed` on failure (see design/pytypes §10).
+    /// resolved `TransactionFailed` on failure (see `docs/11-errors.md`).
     fn send_transaction(&mut self, py: Python<'_>, tx_bytes: &[u8]) -> PyResult<Py<PyTxResult>> {
         let tx: VersionedTransaction = bincode::deserialize(tx_bytes)
             .map_err(|e| PyValueError::new_err(format!("invalid tx bytes: {e}")))?;
@@ -1026,7 +1030,7 @@ impl PyLiteSVM {
 
     /// Ensure every key in `keys` is resident, hydrating any that are missing
     /// from the fork (snapshot cache → RPC) and injecting them. No-op when
-    /// forking is off. See design/forking-spec/ §3.
+    /// forking is off.
     pub(crate) fn ensure_present(&mut self, keys: &[Address]) -> PyResult<()> {
         // Disjoint mutable borrows of `inner` and `fork` (distinct fields), so
         // the account-store read and the fetch coexist.
@@ -1098,7 +1102,7 @@ impl PyLiteSVM {
 
     /// Resolve lookup-table addresses into the `AddressLookupTableAccount`s that
     /// `v0::Message::try_compile` needs, reading each table from the SVM (create
-    /// or fork it first). See design/forking-spec/ §3.
+    /// or fork it first).
     pub(crate) fn resolve_alt_accounts(
         &self,
         keys: &[Address],
@@ -1265,7 +1269,7 @@ pub(crate) fn tx_result_from(
 }
 
 // Fork-safety invariant (multiprocess runner, `wake-sol test -P N`; see
-// design/multiprocess-runner.md §3 blocker 2): the server forks N worker
+// `docs/14-parallel-running.md`): the server forks N worker
 // processes with this global SVM already live in memory. That is fine — account
 // state is per-fork and each worker calls `svm.reset()` before its first test —
 // but only because nothing in the Rust layer holds a background thread or lock

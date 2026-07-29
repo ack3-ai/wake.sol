@@ -248,7 +248,7 @@ class ModuleEmitter:
 
         Nesting is safe for registration: ``build_interface_from_module`` reflects
         only over members carrying ``__pytypes_ix__`` (``_codec.builder``), so
-        exception classes are skipped. See design/pytypes §10.2."""
+        exception classes are skipped. See ``docs/11-errors.md``."""
         lines = [
             "    # ------------------------------- errors ------------------------------- #",
             f"    # Defined by the program (IDL `errors[]`). Catch `{cls_name}.Error`",

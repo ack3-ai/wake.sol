@@ -47,6 +47,14 @@ maturin develop
 pytest -q
 ```
 
+A few end-to-end tests drive the small on-chain programs under `programs/`, and
+**skip** unless that program's `.so` is built (each skip message names the
+command). With a Solana toolchain installed:
+
+```bash
+cd programs/native-counter && cargo build-sbf   # likewise native-adder, native-emitter
+```
+
 `maturin develop --release` builds an optimized extension instead — worth it for
 long fuzzing campaigns. To get a wheel rather than an editable install,
 `maturin build --release` writes one to `target/wheels/`, installable with

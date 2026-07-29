@@ -17,8 +17,8 @@ venv/
 /pytypes/
 *.tmp/
 
-# Default mainnet-fork snapshot cache (svm.fork(...)); commit intentionally per
-# design/forking-spec/ §5.4 if a test needs a hermetic, checked-in fork.
+# Default mainnet-fork snapshot cache (svm.fork(...)). Commit one deliberately
+# (see docs/13-forking.md) if a test needs a hermetic, checked-in fork.
 /fork-cache/
 # Per-example fork caches (examples/*/*.py write here on live runs).
 **/.fork-cache/
