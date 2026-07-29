@@ -91,6 +91,13 @@ impl PyPubkey {
         PyBytes::new(py, self.inner.as_array())
     }
 
+    /// `bytes(pubkey)`, identical to `to_bytes`. Not consulted by the
+    /// `Vec<u8>` seed extraction in `find_program_address` / `create_program_address`
+    /// — a seed still has to be an explicit `to_bytes()`.
+    fn __bytes__<'py>(&self, py: Python<'py>) -> Bound<'py, PyBytes> {
+        self.to_bytes(py)
+    }
+
     fn __str__(&self) -> String {
         self.inner.to_string()
     }

@@ -41,6 +41,11 @@ class Pubkey:
         """Return the address as its 32 raw bytes."""
         ...
 
+    def __bytes__(self) -> bytes:
+        """Return the address as its 32 raw bytes — `bytes(pubkey)`, identical
+        to `to_bytes`."""
+        ...
+
     def __str__(self) -> str:
         """Return the base58 encoding of the address."""
         ...

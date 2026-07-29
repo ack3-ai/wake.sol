@@ -17,6 +17,8 @@ def test_pubkey_constructors():
     assert Pubkey(pk.to_bytes()) == pk      # from bytes
     assert Pubkey(pk) == pk                  # passthrough
     assert Pubkey(1).to_bytes() == b"\x00" * 31 + b"\x01"  # from int, big-endian
+    assert bytes(pk) == pk.to_bytes()        # bytes() protocol
+    assert Pubkey(bytes(pk)) == pk           # and round-trips back
 
 
 def test_default_svm():
