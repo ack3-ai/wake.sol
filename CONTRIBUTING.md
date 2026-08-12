@@ -1,6 +1,6 @@
 # Contributing: Git and agent coordination
 
-> ack3 Git policy v1 (2026-08-12). This file is intentionally identical across
+> ack3 Git policy v2 (2026-08-12). This file is intentionally identical across
 > the independent repositories in the ack3 workspace. Update every copy in one
 > coordinated change.
 
@@ -12,10 +12,13 @@ precedence when they are stricter.
 
 - Never do routine work directly on `main`, `master`, `stage`, or `release/**`.
   Changes enter a long-lived branch through a pull request.
-- One task has one branch, one worktree, and one active writer. Two agents must
-  never edit the same worktree or write to the same branch concurrently.
-- Treat the remote branch and its pull request as the coordination record
-  between machines. Do not hand off uncommitted or unpushed work.
+- One task has one stable branch. Use a dedicated worktree; never let two agents
+  edit the same worktree.
+- Do not intentionally run simultaneous writers on one branch. Git's
+  non-fast-forward push rejection is the safety net if two machines overlap;
+  never bypass it with a force push.
+- The remote task branch is the cross-machine synchronization record. Pull
+  requests are for review and merging, not routine agent coordination.
 - If a checkout contains changes you did not create, do not stage, stash,
   discard, or reformat them. Leave it in place and create a clean worktree.
 - Each repository gets its own branch and pull request. A change spanning
@@ -32,134 +35,143 @@ git symbolic-ref --short refs/remotes/origin/HEAD
 git worktree list
 ```
 
-Choose the base branch required by the repository's own instructions. Otherwise,
-use `origin/HEAD`. Create a new branch and worktree from that remote ref:
+Before creating a branch, check whether the task already has a remote branch.
+If it does, resume it as described below. Otherwise, choose the base branch
+required by the repository's own instructions, or use `origin/HEAD`, and create:
 
 ```sh
-git worktree add ../<repo>-<slug>-<owner> \
-  -b <type>/<work-id>-<slug>-<owner> origin/<base>
-cd ../<repo>-<slug>-<owner>
+git worktree add ../<repo>-<slug> \
+  -b <type>/<work-id>-<slug> origin/<base>
+cd ../<repo>-<slug>
 git push -u origin HEAD
 ```
 
-Pushing the branch immediately makes the claim visible from the other machine.
+Pushing the branch immediately makes the task visible from the other machine.
 Do not create an empty commit merely to reserve it.
 
-- Claude Code: `claude --worktree <unique-name>` provides the required
-  isolation. Confirm the generated branch follows this policy.
-- Codex: managed worktrees may start on a detached `HEAD`. Run
-  `git switch -c <branch-name>` and `git push -u origin HEAD` before the first
-  commit.
+- Claude Code: `claude --worktree <unique-local-name>` provides isolation.
+  Confirm the generated branch follows this policy.
+- Codex: managed worktrees may start on a detached `HEAD`. Create or switch to
+  the stable task branch and set its upstream before the first commit.
 - Manual sessions: never use `--force` to bypass Git's worktree safety checks.
 
-## Branch names and ownership
+## Branch names
 
 Use:
 
 ```text
-<type>/<work-id>-<short-slug>-<owner>
+<type>/<work-id>-<short-slug>
 ```
 
 - `type`: `feat`, `fix`, `docs`, `content`, `perf`, `refactor`, `test`, `build`,
   `ci`, `chore`, or `hotfix`.
-- `work-id`: the issue/ticket number; if none exists, use `YYYYMMDD`.
-- `short-slug`: lowercase kebab-case description of the single outcome.
-- `owner`: a stable person-machine-agent token, such as `jg-mbp-cdx1` or
-  `jg-studio-cc2`.
+- `work-id`: the issue or ticket number; if none exists, use `YYYYMMDD`.
+- `short-slug`: a lowercase kebab-case description of the single outcome.
 
 Examples:
 
 ```text
-feat/123-wake-router-jg-mbp-cdx1
-docs/20260812-git-policy-jg-studio-cc2
+feat/123-wake-router
+docs/20260812-git-policy
 ```
 
-Never reuse another active branch. The pull request body must name its current
-active writer. A handoff changes that field; it does not permit two writers.
+Do not include a person, machine, tool, model, agent, or session identity in a
+branch name. Local worktree directory names may include a local-only suffix when
+needed to avoid a collision.
 
-## Commits and pushes
+## Continuous synchronization and commits
 
-Commit when a coherent checkpoint is complete, related checks pass, and the
-diff can be explained in one sentence. Also commit and push before a handoff,
-machine switch, context switch, or end of session.
+Every agent turn that modifies files is a potential machine switch. Before
+yielding control, the agent must:
 
-- Keep every commit an isolated, complete change. Separate unrelated work.
+1. stage only files owned by the task;
+2. run the relevant checks;
+3. commit the coherent current state;
+4. push it to the task branch; and
+5. report any work that could not be committed or pushed.
+
+Incomplete but coherent work may use a `wip: checkpoint ...` commit. Never
+include known-broken, secret, generated, or unrelated files merely to create a
+checkpoint. Structure work so a mutating turn normally ends at a coherent
+checkpoint.
+
+This policy authorizes agents to create and push checkpoint commits to the
+current task branch without asking the user after each one. It does not
+authorize direct pushes to long-lived branches, force pushes, merges, or the
+inclusion of unrelated files.
+
+- Keep every commit an isolated, explainable change. Separate unrelated work.
 - Use `type(scope): imperative summary` when a scope is useful, for example
   `fix(router): preserve versioned docs paths`.
-- Stage explicit paths or patches. In a checkout that has any unrelated change,
-  never use `git add -A`, `git add .`, or blanket formatting.
+- Stage explicit paths or patches. In a checkout with unrelated changes, never
+  use `git add -A`, `git add .`, or blanket formatting.
 - Before committing, run `git diff --check`, inspect `git diff --staged`, and run
   the smallest relevant test or validation suite.
 - Never commit secrets, local environment files, caches, logs, or generated
   output unless the repository explicitly tracks that output.
-- Push every coherent commit. A commit that exists on only one machine is not a
-  valid handoff or backup.
+
+## Resuming on another machine
+
+At the start of work:
+
+1. fetch from `origin`;
+2. identify the existing remote task branch;
+3. create or reuse a clean worktree tracking that branch;
+4. verify local `HEAD` matches the remote branch; and
+5. continue from the latest commit and diff.
+
+The remote task branch is the synchronization source of truth. Never use a
+stash, copied worktree, pull-request prose, or machine-local metadata as the
+handoff mechanism.
+
+Never force-push a task branch. If a push is rejected because the remote
+advanced, stop editing, fetch, inspect the competing commits, and reconcile
+deliberately. Do not overwrite remote history. If the competing changes cannot
+be reconciled safely, request a human decision with the exact commits and
+conflict; routine checkpoints require no human coordination.
 
 ## Pull requests
 
 All changes to long-lived branches require a pull request, including docs,
 content, configuration, dependencies, CI, and agent instructions. The only
 exception is an explicitly authorized emergency action; document it and follow
-with a normal review.
+with normal review.
 
-Open a draft pull request after the first meaningful pushed commit when work is
-still in progress. This makes ownership, scope, and status visible without
-requesting a formal review. Keep one pull request focused on one outcome; split
-it when reviewers would have to reason about unrelated changes.
+Open a pull request when the change is ready for review. Do not open a draft
+merely to claim a branch or publish agent status. Keep one pull request focused
+on one outcome; split unrelated work.
 
-Every pull request description records:
+The description should contain only what a reviewer needs:
 
 - the problem and intended outcome;
-- the active writer and branch owner;
-- the changed areas and deliberate exclusions;
-- tests/checks run and their results;
+- changed areas and deliberate exclusions;
+- tests or checks run and their results;
 - screenshots or generated artifacts when output is visual;
-- risks, migrations, rollout or rollback notes;
-- linked issues and cross-repository pull requests, including merge order; and
-- a `Handoff` section with current `HEAD`, remaining work, and blockers.
+- material risks, migrations, rollout, or rollback notes; and
+- linked issues and cross-repository pull requests, including merge order.
 
-Mark a draft ready only after self-reviewing the complete diff, removing
-unrelated files, updating from the target branch, running required checks, and
-resolving every known conversation. Obtain an independent review. Human approval
-is mandatory for production/deployment behavior, security boundaries,
-authentication, secrets, dependencies, CI workflows, data migrations, legal
-text, and externally published claims.
+Request human attention once the complete diff is ready. Do not use PR comments
+as a heartbeat or append a handoff log after every checkpoint; pushed commits
+already update the pull request. Human approval remains mandatory for
+production or deployment behavior, security boundaries, authentication,
+secrets, dependencies, CI workflows, data migrations, legal text, and
+externally published claims.
 
-Use squash merge by default so one pull request becomes one revertible change on
-the long-lived branch. Preserve individual commits only when they are
-independently useful. Delete the remote branch after merge.
-
-## Handoffs and two-machine synchronization
-
-Before handing work to another writer:
-
-1. stop every process that can still edit the worktree;
-2. commit only the task's files and push all commits;
-3. verify `git status --short` is empty;
-4. update the pull request's `Handoff` section with the exact `HEAD` SHA, checks
-   run, remaining work, and the new active writer; and
-5. tell the receiving writer that the branch is released.
-
-The receiving writer fetches and verifies the remote SHA before editing. Never
-copy a live worktree between machines and never let both machines continue the
-same branch after a handoff. If work must proceed in parallel, split it into
-separate branches and assign one integration owner.
-
-Do not rewrite a published or handed-off branch. On a branch that has always had
-one writer, a necessary rebase may be published with `git push --force-with-lease`
-only after fetching and verifying that the remote did not advance. Never use
-plain `--force`.
+Use squash merge by default so checkpoint commits remain useful during
+development without cluttering the long-lived branch. Preserve individual
+commits only when they are independently useful. Delete the remote task branch
+after merge.
 
 ## Recovery and cleanup
 
-- Do not use `git reset --hard`, `git clean -fd`, destructive checkout/restore,
-  or branch/worktree deletion on changes whose ownership is uncertain.
-- Do not use a stash as a cross-machine handoff. Never pop or drop a stash you
-  did not create.
+- Do not use `git reset --hard`, `git clean -fd`, destructive checkout or
+  restore, or branch/worktree deletion on changes whose ownership is uncertain.
+- Do not use a stash as cross-machine synchronization. Never pop or drop a
+  stash you did not create.
 - If the base checkout is dirty, keep it untouched and branch from the clean
   remote ref in a new worktree.
 - After merge, confirm the pull request is complete, remove only your clean
-  worktree, run `git worktree prune`, and delete your local topic branch.
+  worktree, run `git worktree prune`, and delete your local task branch.
 
 ## Repository enforcement for maintainers
 
