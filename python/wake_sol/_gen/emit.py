@@ -271,7 +271,10 @@ class ModuleEmitter:
         lines = [f"{base_name} = {cls_name}.Error"]
         lines += [f"{e.name} = {cls_name}.{e.name}" for e in self.idl.errors]
         lines.append("")
-        lines.append(f"register_errors({cls_name}.Error)")
+        # Scoped to this program: Anchor numbers user errors from 6000 per
+        # program, so two generated programs would otherwise resolve each
+        # other's codes depending on import order.
+        lines.append(f"register_errors({cls_name}.Error, PROGRAM_ID)")
         return lines
 
     def _imports(self):

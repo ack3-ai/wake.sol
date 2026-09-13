@@ -327,8 +327,65 @@ def test_generated_error_classes_and_hierarchy(tiny_program):
 
 def test_generated_errors_resolve_via_build(tiny_program):
     # After import (register_errors ran), build() resolves the codes to the
-    # generated classes — exactly what the Rust raise path does on failure.
-    e = E.build(code=6100, instruction_index=1)
+    # generated classes — exactly what the Rust raise path does on failure,
+    # which always names the program the runtime attributed the failure to.
+    e = E.build(code=6100, instruction_index=1,
+                program_id=str(tiny_program.PROGRAM_ID))
     assert isinstance(e, tiny_program.TooSmall)
     assert e.code == 6100 and e.instruction_index == 1
     assert isinstance(e, tiny_program.TinyProgError) and isinstance(e, ProgramError)
+
+
+def test_two_programs_sharing_a_code_stay_distinct(tmp_path):
+    """The regression this scoping exists for.
+
+    Anchor allocates user error codes from 6000 upward *per program*, so any two
+    Anchor programs in one `pytypes/` both define 6000. Resolved by code alone,
+    whichever imported last won and a failure in one program was reported as the
+    other's error — silently, and differently depending on import order."""
+    root = tmp_path / "gen"
+    idl_dir = root / "idls"
+    idl_dir.mkdir(parents=True)
+    addrs = {}
+    for name, tag in (("alpha_prog", 0x11), ("beta_prog", 0x22)):
+        addr = str(Pubkey(bytes([tag] * 32)))
+        addrs[name] = addr
+        (idl_dir / f"{addr}.json").write_text(json.dumps({
+            "address": addr,
+            "metadata": {"name": name},
+            "instructions": [],
+            # Same number in both, different meaning — exactly what Anchor emits.
+            "errors": [{"code": 6000, "name": f"{name.title().replace('_', '')}Boom"}],
+        }))
+    assert run_gen(target_idls=(str(idl_dir),), dep_idls=("/nonexistent",),
+                   out=str(root / "pytypes")) == 0
+
+    sys.path.insert(0, str(root))
+    for n in [n for n in sys.modules if n == "pytypes" or n.startswith("pytypes.")]:
+        del sys.modules[n]
+    try:
+        pytypes = importlib.import_module("pytypes")
+        alpha, beta = pytypes.alpha_prog, pytypes.beta_prog
+        assert alpha.AlphaProgBoom.code == beta.BetaProgBoom.code == 6000
+
+        # Each program's 6000 resolves to *its own* class, whichever imported last.
+        assert isinstance(E.build(code=6000, program_id=addrs["alpha_prog"]),
+                          alpha.AlphaProgBoom)
+        assert isinstance(E.build(code=6000, program_id=addrs["beta_prog"]),
+                          beta.BetaProgBoom)
+    finally:
+        sys.path.remove(str(root))
+        for n in [n for n in sys.modules if n == "pytypes" or n.startswith("pytypes.")]:
+            del sys.modules[n]
+
+
+def test_generated_errors_are_scoped_to_their_program(tiny_program):
+    """A generated program's codes resolve only for that program.
+
+    Anchor numbers user errors from 6000 per program, so the same number means
+    something different in the next program — guessing is how a failure in one
+    gets reported as the other's error."""
+    other = str(Pubkey(bytes([8] * 32)))
+    assert isinstance(E.build(code=6100, program_id=other), UnknownError)
+    # And with no program named at all there is nothing to scope by.
+    assert isinstance(E.build(code=6100), UnknownError)

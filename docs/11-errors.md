@@ -158,5 +158,19 @@ class DoomViolated(MyProgError):
     code = 61234
     msg = "doom was violated"
 
-register_errors(MyProgError)     # now Custom(61234) resolves to DoomViolated
+register_errors(MyProgError, MY_PROGRAM_ID)   # Custom(61234) *from that program*
 ```
+
+The program id is what keeps two programs' codes apart. Anchor numbers user
+errors from 6000 in **every** program, so any two of them define 6000, 6001, …
+Resolution is keyed by `(program_id, code)`: a failure attributed to one program
+never resolves to another's class, and a code that program does not define stays
+`UnknownError` rather than borrowing a neighbour's meaning. Generated modules
+pass their `PROGRAM_ID` automatically.
+
+Omitting it still works and registers the codes *unscoped*, matching a failure
+from any program — fine for a single-program project, ambiguous by construction
+once there are two.
+
+Matching a bare number is unaffected either way: `must_fail(6100)` compares
+against the raised error's `.code` and never consults the registry.
