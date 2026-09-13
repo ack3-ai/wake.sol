@@ -31,13 +31,16 @@ The raised instance carries the error-intrinsic scalars flat (``code``,
 ``instruction_index``, ``account_index``) and links the execution receipt as
 ``.tx`` (a ``TransactionResult``): ``ex.tx.logs``, ``ex.tx.call_trace`` — the last
 also reachable as the ``ex.call_trace`` shortcut.
-Matching is by *type*. User-program and Anchor codes are resolved *code-keyed* and
-CPI-depth-independent (the ``Custom`` code bubbles up unchanged); two user programs
-sharing a code resolve to whichever is registered last. Builtin (native) programs —
-System and SPL Token/Token-2022 — are the exception: their error enums start at 0,
-so they collide with each other and fall inside the Anchor range. A ``Custom`` code
-from a builtin is therefore resolved *program-scoped*, attributed to the program
-that produced it (recovered from the call trace and passed to ``build`` as
+Matching is by *type*. Resolution is *program-scoped* and CPI-depth-independent
+(the ``Custom`` code bubbles up unchanged): a user program's codes are keyed by
+``(program_id, code)``, so two programs using the same number — which Anchor
+guarantees, numbering user errors from 6000 in every program — stay distinct.
+Anchor's own framework codes (< 6000) mean the same thing everywhere and stay a
+program-independent fallback. Builtin (native) programs — System and SPL
+Token/Token-2022 — are scoped the same way and additionally do not fall through
+at all, because their enums start at 0 and would otherwise be read as Anchor
+codes. Every scoped lookup uses the program the runtime attributed the failure
+to (recovered from the call trace and passed to ``build`` as
 ``program_id``), so System's ``Custom(0)`` and Token's ``Custom(0)`` stay distinct.
 """
 
@@ -91,18 +94,36 @@ _BUILTIN_BY_PROGRAM: dict[str, dict[int, type]] = {
 
 
 # --- per-program registry (populated by generated modules at import) ------- #
-_PROGRAM_BY_CODE: dict[int, type] = {}
+#
+# Keyed by ``(program_id, code)``, not by ``code`` alone. Anchor allocates user
+# error codes from 6000 upward *per program*, so any two Anchor programs in one
+# ``pytypes/`` define 6000, 6001, … — with a code-keyed table the class you got
+# back depended on import order, and a failure in one program was reported as
+# the other's error. The program is known at both ends (the generator emits it,
+# and the runtime attributes the failure), so it belongs in the key.
+#
+# ``program_id`` is ``None`` for a base registered without one. Those entries act
+# as a catch-all for any program: it keeps hand-written registrations working,
+# and is the only way a bare ``build(code=...)`` with no program can resolve.
+_PROGRAM_BY_CODE: dict[tuple[str | None, int], type] = {}
 
 
-def register_errors(base_cls: type) -> None:
+def register_errors(base_cls: type, program_id=None) -> None:
     """Register a generated ``<Program>Error`` base so its ``Custom`` codes
-    resolve to their specific subclasses on the raise path. Last registration
-    wins on a code collision — so re-importing a program refreshes its classes,
-    and (rarely) two programs sharing a code resolve to the last imported."""
+    resolve to their specific subclasses on the raise path.
+
+    Pass ``program_id`` — generated modules do — and the codes are scoped to that
+    program, so two programs using the same number stay distinct. Without it the
+    codes are registered unscoped and match a failure from *any* program, which
+    is the pre-existing behaviour and is ambiguous by construction.
+
+    Re-registering the same program refreshes its classes.
+    """
+    key = str(program_id) if program_id is not None else None
     for sub in base_cls.__subclasses__():
         code = getattr(sub, "code", None)
         if code is not None:
-            _PROGRAM_BY_CODE[code] = sub
+            _PROGRAM_BY_CODE[(key, code)] = sub
 
 
 def build(code=None, native=None, instruction_index=None, account_index=None,
@@ -116,11 +137,14 @@ def build(code=None, native=None, instruction_index=None, account_index=None,
       SPL Token / Token-2022) → that program's table, program-scoped — an
       uncatalogued builtin code stays ``UnknownError`` rather than being misread as
       an Anchor/user code;
-    * otherwise per-program table → Anchor table (< 6000) → ``UnknownError``.
+    * otherwise the per-program table, keyed by ``(program_id, code)`` so two
+      programs using the same number stay distinct → unscoped registrations →
+      Anchor table (< 6000) → ``UnknownError``.
 
     ``program_id`` is the base58 of the program the runtime attributed the failure
-    to; ``None`` (e.g. an error built by hand, or an untraced path) falls straight
-    through to the code-keyed resolution."""
+    to. ``None`` (an error built by hand, or an untraced path) can only reach
+    unscoped registrations and the Anchor table — a generated program's codes are
+    not guessed at, because without a program there is nothing to guess from."""
     if native is not None:
         cls = _SOLANA_BY_NAME.get(native, SolanaError)
         return cls(instruction_index=instruction_index, account_index=account_index)
@@ -133,7 +157,15 @@ def build(code=None, native=None, instruction_index=None, account_index=None,
                                     account_index=account_index)
             return cls(code=code, instruction_index=instruction_index,
                        account_index=account_index)
-        cls = _PROGRAM_BY_CODE.get(code)
+        # Scoped to the failing program first; only then the unscoped entries,
+        # which a caller opted into by registering without a program id. A code
+        # belonging to some *other* program is never consulted — that is the
+        # misreport this key exists to prevent.
+        cls = _PROGRAM_BY_CODE.get((program_id, code))
+        if cls is None:
+            cls = _PROGRAM_BY_CODE.get((None, code))
+        # The Anchor framework table is genuinely program-independent — 2001 is
+        # ConstraintHasOne in every Anchor program — so it stays a fallback.
         if cls is None and code < ANCHOR_USER_ERROR_OFFSET:
             cls = _ANCHOR_BY_CODE.get(code)
         if cls is None:
