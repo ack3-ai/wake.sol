@@ -1,5 +1,6 @@
 use std::collections::HashSet;
-use std::path::PathBuf;
+use std::ffi::OsStr;
+use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
 use pyo3::exceptions::{PyRuntimeError, PyTypeError, PyValueError};
@@ -23,6 +24,7 @@ use solana_transaction_error::TransactionError;
 
 mod account;
 mod alt;
+mod coverage;
 mod fork;
 mod instruction;
 mod perf;
@@ -555,8 +557,64 @@ impl PyTxResult {
 /// `IndexMap::with_capacity(32)`), used to re-enable dedup after it's turned off.
 const DEFAULT_TX_HISTORY_CAP: usize = 32;
 
+/// Find the unstripped build matching a deployed `.so` and register it as the
+/// program's debug source for coverage.
+///
+/// `cargo build-sbf` writes two artifacts per build: the stripped
+/// `target/deploy/<name>.so` that gets deployed, and the full one under
+/// `target/sbpf-solana-solana/<profile>/<name>.so`. They come out of one
+/// compilation, so the latter's DWARF describes exactly the code that runs —
+/// and it cannot be deployed itself, because its symbol table makes agave's
+/// loader reject it once tracing is on (see `coverage`).
+///
+/// Best effort by design: a project laid out differently registers its ELF
+/// explicitly with `coverage.add_debug_elf` and nothing here has to know about
+/// it. A silent miss shows up as `has_debug_info: false` in the report rather
+/// than as wrong line numbers.
+fn register_sibling_debug_elf(path: &Path, program_id: Address) {
+    // A build stripped of `.symtab` but not of `.debug_*` is deployable *and*
+    // self-describing, so there is nothing to look up.
+    if let Ok(bytes) = std::fs::read(path) {
+        if coverage::has_line_table(&bytes) {
+            coverage::register_debug_elf(program_id, bytes);
+            return;
+        }
+    }
+    let (Some(name), Some(deploy_dir)) = (path.file_name(), path.parent()) else {
+        return;
+    };
+    if deploy_dir.file_name() != Some(OsStr::new("deploy")) {
+        return;
+    }
+    let Some(target) = deploy_dir.parent() else {
+        return;
+    };
+    for profile in ["release", "debug"] {
+        let candidate = target.join("sbpf-solana-solana").join(profile).join(name);
+        if let Ok(bytes) = std::fs::read(&candidate) {
+            if coverage::has_line_table(&bytes) {
+                coverage::register_debug_elf(program_id, bytes);
+                return;
+            }
+        }
+    }
+}
+
 fn base_svm(sigverify: bool, blockhash_check: bool, transaction_history: bool) -> InnerLiteSVM {
-    let svm = InnerLiteSVM::new()
+    // Register tracing is compiled into each program as it loads, so coverage
+    // has to be decided here, at construction — `LiteSVM::new_debuggable(true)`
+    // rather than a flag flipped later. `new_debuggable` also installs litesvm's
+    // own tracing callback, which dumps raw register files to `target/sbf/trace`;
+    // ours replaces it and folds the traces in memory instead. Counters live in
+    // `coverage`, not in the SVM, so the per-test reset below does not lose them.
+    let svm = if coverage::is_enabled() {
+        let mut svm = InnerLiteSVM::new_debuggable(true);
+        svm.set_invocation_inspect_callback(coverage::CoverageCallback::new());
+        svm
+    } else {
+        InnerLiteSVM::new()
+    };
+    let svm = svm
         .with_sigverify(sigverify)
         .with_blockhash_check(blockhash_check);
     // Capacity 0 disables the signature dedup, so duplicate txs are allowed
@@ -985,12 +1043,19 @@ impl PyLiteSVM {
     /// `path` is resolved with `os.fspath`, so a `pathlib.Path` works as well as a
     /// `str` — tests build the `.so` location with `Path`, and forcing them through
     /// `str()` (or through `add_program(..., p.read_bytes())`) was pure ceremony.
+    ///
+    /// Under `--coverage`, also looks for the unstripped sibling of `path` and
+    /// registers it as the program's debug source (see :mod:`coverage`), so the
+    /// standard `cargo build-sbf` layout needs no extra wiring.
     fn add_program_from_file(
         &mut self,
         program_id: &Bound<'_, PyAny>,
         path: PathBuf,
     ) -> PyResult<()> {
         let program_id = PyPubkey::new(program_id)?;
+        if coverage::is_enabled() {
+            register_sibling_debug_elf(&path, program_id.inner);
+        }
         self.inner
             .add_program_from_file(program_id.inner, path)
             .map_err(to_py_err)
@@ -1503,5 +1568,6 @@ fn _native(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(py_default_svm, m)?)?;
     signing::register(m)?;
     perf::register(m)?;
+    coverage::register(m)?;
     Ok(())
 }

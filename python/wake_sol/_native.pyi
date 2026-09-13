@@ -1107,3 +1107,32 @@ def perf_snapshot() -> dict[str, int]:
 def perf_reset() -> None:
     """Zero every timing counter (call before a measured run)."""
     ...
+
+# --- SBF source-line coverage (see src/coverage.rs; use `wake_sol.coverage`) -- #
+def coverage_enable() -> None:
+    """Arm register tracing for SVMs built from here on. Programs compile tracing
+    in at load, so an SVM that already exists must be `reset()` to pick it up."""
+    ...
+
+def coverage_enabled() -> bool:
+    """Is coverage armed?"""
+    ...
+
+def coverage_reset() -> None:
+    """Drop all counts; registered debug ELFs are kept."""
+    ...
+
+def coverage_add_debug_elf(program_id: str, path: str) -> None:
+    """Register an unstripped ELF as `program_id`'s debug source. Raises if it
+    carries no `.debug_line`."""
+    ...
+
+def coverage_report(roots: list[tuple[str, str]] = ...) -> dict:
+    """`{"files": {path: {line: hits}}, "programs": [...]}`. Each root is a
+    `(directory, crate_name)` pair — the crate name is what disambiguates the
+    relative paths the SBF toolchain emits (see `wake_sol.coverage`). An empty
+    list disables filtering entirely, which admits every dependency.
+
+    Each program entry also carries `text_sha256`, the SHA-256 of its deployed
+    `.text` — the build identity that makes merging reports across runs safe."""
+    ...
