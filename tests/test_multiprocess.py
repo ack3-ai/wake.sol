@@ -13,12 +13,14 @@ the way out, and are skipped where no pty is available.
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import signal
 import subprocess
 import sys
 import time
+from pathlib import Path
 
 import pytest
 
@@ -548,3 +550,121 @@ def test_report_serialization_pickle_and_json_fallback():
     assert isinstance(payload2, dict)
     back2 = load_report(kind2, payload2)
     assert (back2.nodeid, back2.outcome, back2.when) == ("t.py::test_x", "failed", "call")
+
+
+# --------------------------------------------------------------------------- #
+# Coverage aggregation
+# --------------------------------------------------------------------------- #
+
+_COUNTER = Path(__file__).parent.parent / "programs/native-counter"
+_COUNTER_SO = _COUNTER / "target/deploy/native_counter.so"
+_COUNTER_DEBUG_SO = _COUNTER / "target/sbpf-solana-solana/release/native_counter.so"
+
+_ONE_INCREMENT = '''
+from pathlib import Path
+from wake_sol import Account, Instruction, Pubkey, svm, writable
+
+SO = Path(r"{so}")
+PID = Pubkey(bytes([0xD1] * 32))
+
+
+def test_increment():
+    svm.transaction_history = False
+    svm.add_program_from_file(PID, SO)
+    payer = Account.new()
+    svm.airdrop(payer, 1_000_000_000)
+    counter = Account.new()
+    svm.set_account(
+        counter,
+        lamports=svm.minimum_balance_for_rent_exemption(8),
+        data=bytes(8),
+        owner=PID,
+    )
+    payer.tx(Instruction(PID, [writable(counter)], b""))
+'''
+
+
+def _da_counts(lcov: str) -> list:
+    return [int(l.split(",")[1]) for l in lcov.splitlines() if l.startswith("DA:")]
+
+
+@pytest.mark.skipif(
+    not _COUNTER_DEBUG_SO.exists(),
+    reason="native-counter debug build missing (run: cd programs/native-counter "
+           "&& cargo build-sbf --disable-remap-cwd)",
+)
+def test_coverage_is_merged_across_workers(tmp_path):
+    """Every worker counts in its own address space, so the whole-run number can
+    only exist in the server. One transaction per worker must come back as N.
+
+    Regression guard for the ordering trap this hit first: a worker that ships
+    its report from `pytest_terminal_summary` is too late — that runs after
+    `pytest_sessionfinish`, by which point the server has stopped draining the
+    queue and the counts vanish silently.
+    """
+    _write(tmp_path, "test_cov.py", _ONE_INCREMENT.format(so=_COUNTER_SO))
+    report = tmp_path / "cov.lcov"
+
+    res = _run(
+        tmp_path, "-P", "3", "--cov",
+        "--coverage-source", str(_COUNTER),
+        "--coverage-report", str(report),
+        "test_cov.py",
+    )
+    assert res.returncode == 0, res.stdout + res.stderr
+    assert "Coverage (merged from 3 of 3 workers)" in res.stdout, res.stdout
+
+    counts = _da_counts(report.read_text())
+    assert counts, report.read_text()
+    # Three workers ran the same single transaction: executed lines read 3, and
+    # nothing reads more — a sign the merge summed something it should not have.
+    assert max(counts) == 3, counts
+    assert 0 in counts, "the untaken error paths should still read 0"
+
+    # The sidecar identifies the build, so the merged report can itself be merged.
+    meta = json.loads((report.with_name(report.name + ".meta.json")).read_text())
+    assert meta["programs"], meta
+
+
+@pytest.mark.skipif(not _COUNTER_DEBUG_SO.exists(), reason="native-counter debug build missing")
+def test_cov_count_limits_which_workers_collect(tmp_path):
+    """`--cov N` traces the first N workers; the rest run at full speed.
+
+    With one transaction per worker, the merged count *is* the number of
+    collecting workers — so this reads the selection directly.
+    """
+    _write(tmp_path, "test_cov.py", _ONE_INCREMENT.format(so=_COUNTER_SO))
+    for wanted in (1, 2):
+        report = tmp_path / f"cov{wanted}.lcov"
+        res = _run(
+            tmp_path, "-P", "3", "--cov", str(wanted),
+            "--coverage-source", str(_COUNTER),
+            "--coverage-report", str(report),
+            "test_cov.py",
+        )
+        assert res.returncode == 0, res.stdout + res.stderr
+        assert f"merged from {wanted} of 3 workers" in res.stdout, res.stdout
+        assert max(_da_counts(report.read_text())) == wanted
+
+
+def test_cov_count_cannot_exceed_worker_count(tmp_path):
+    _write(tmp_path, "test_cov.py", "def test_ok():\n    assert True\n")
+    res = _run(tmp_path, "-P", "2", "--cov", "5", "test_cov.py")
+    assert res.returncode != 0
+    assert "asks for more workers than -P 2" in res.stdout + res.stderr
+
+
+@pytest.mark.skipif(not _COUNTER_DEBUG_SO.exists(), reason="native-counter debug build missing")
+def test_one_worker_matches_one_transaction(tmp_path):
+    """The A/B for the test above: with a single worker the same lines read 1,
+    so the 3 really is the merge and not a miscount."""
+    _write(tmp_path, "test_cov.py", _ONE_INCREMENT.format(so=_COUNTER_SO))
+    report = tmp_path / "cov.lcov"
+    res = _run(
+        tmp_path, "-P", "1", "--cov",
+        "--coverage-source", str(_COUNTER),
+        "--coverage-report", str(report),
+        "test_cov.py",
+    )
+    assert res.returncode == 0, res.stdout + res.stderr
+    assert max(_da_counts(report.read_text())) == 1

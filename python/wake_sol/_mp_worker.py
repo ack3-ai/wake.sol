@@ -100,6 +100,10 @@ class PytestPluginMultiprocessWorker:
         self._attach = attach
         self._tee = tee
 
+        #: Whether this worker is one of the `--cov N` collectors. Resolved in
+        #: the run loop, where its index is known.
+        self._collects_coverage = False
+
         self._f = None  # type: Optional[object]
         self._ctx_managers: List = []
         self._keyboard_interrupt = False
@@ -307,6 +311,29 @@ class PytestPluginMultiprocessWorker:
 
         _pytest_plugin.set_crash_dir(self._crash_dir)
         _pytest_plugin.set_crash_log_sink(self._crashlog_sink)
+        _pytest_plugin.set_worker_index(self._index)
+        # `--cov N` collects from the first N workers only, so the rest run
+        # untraced and at full speed. Disarming here rather than at configure
+        # time is deliberate and is early enough: tracing is compiled into a
+        # program when the SVM is rebuilt, and the first rebuild happens in the
+        # first test's setup — which is inside the loop below.
+        count = _pytest_plugin.coverage_proc_count(session.config)
+        self._collects_coverage = (
+            count == _pytest_plugin._COVERAGE_ALL or self._index < count
+        )
+        if not self._collects_coverage:
+            from wake_sol import coverage as _coverage
+
+            _coverage.disable()
+
+        # Live export: snapshots go to the server, which owns the merged view.
+        # Each send carries this worker's *cumulative* counts, and the server
+        # keeps one slot per worker — so re-sending replaces rather than adds.
+        live = (
+            _pytest_plugin.start_live_coverage(session.config, self._coverage_sink)
+            if self._collects_coverage
+            else None
+        )
 
         indexes = self._conn.recv()
         try:
@@ -332,6 +359,16 @@ class PytestPluginMultiprocessWorker:
             from wake_sol import fuzzing
 
             self._queue.put(("fuzz_test_stats", self._index, fuzzing.get_session_stats()))
+            if live is not None:
+                live.stop(final=False)
+            # Coverage goes out here too, and deliberately not from the
+            # entry-point plugin's terminal summary: that runs after
+            # `pytest_sessionfinish`, by which point the server has stopped
+            # draining the queue and the report is silently dropped.
+            if self._collects_coverage:
+                report = _pytest_plugin.collect_coverage(session.config)
+                if report is not None:
+                    self._queue.put(("coverage", self._index, report))
 
         return True
 
@@ -354,6 +391,14 @@ class PytestPluginMultiprocessWorker:
         # back to the JSON form, instead of failing in the queue's feeder thread.
         kind, payload = dump_report(report)
         self._queue.put((kind, self._index, payload))
+
+    def _coverage_sink(self, report: dict) -> None:
+        # A live snapshot of this worker's cumulative counts. Dropped rather
+        # than blocked on if the queue is full: coverage must never stall tests.
+        try:
+            self._queue.put(("coverage", self._index, report), timeout=0.125)
+        except Exception:
+            pass
 
     def _crashlog_sink(self, nodeid: str, relpath: str) -> None:
         # Installed via _pytest_plugin.set_crash_log_sink; fires when the

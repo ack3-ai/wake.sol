@@ -88,6 +88,8 @@ class PytestPluginMultiprocessServer:
         logs_dir: Path,
         attach: bool = False,
         attach_first: bool = False,
+        coverage_report: Optional[Path] = None,
+        coverage_sync: float = 0.0,
     ) -> None:
         self._proc_count = proc_count
         self._seeds = seeds
@@ -96,12 +98,22 @@ class PytestPluginMultiprocessServer:
         self._logs_dir = logs_dir
         self._attach = attach
         self._attach_first = attach_first
+        # Passed in rather than read from the pytest config: the server session
+        # runs with `-p no:wake_sol`, so `--coverage-report` is stripped from its
+        # arguments before it ever sees them.
+        self._coverage_report = coverage_report
+        self._coverage_sync = coverage_sync
         # index -> (Process, parent end of its Pipe)
         self._processes: Dict[int, tuple] = {}
         # Fuzz-stats registries merged across workers (see wake_sol.fuzzing)
         # and (index, nodeid, relpath) for every crash log a worker reported.
         self._fuzz_stats: Dict[str, dict] = {}
         self._crash_logs: List[Tuple[int, str, str]] = []
+        # One slot per worker, holding that worker's *cumulative* report.
+        # Deliberately not a running merge: a worker exporting live sends
+        # repeatedly, and merging sums, so accumulating in place would multiply
+        # its counts. Slots are replaced and merged fresh on each read.
+        self._worker_coverage: Dict[int, dict] = {}
         from rich.console import Console
 
         self._console = Console()
@@ -346,6 +358,12 @@ class PytestPluginMultiprocessServer:
                         from wake_sol import fuzzing
 
                         fuzzing.merge_session_stats(self._fuzz_stats, msg[2])
+                    elif kind == "coverage":
+                        self._worker_coverage[index] = msg[2]
+                        # Live mode: rewrite the merged report as snapshots
+                        # arrive, so an editor can follow the run.
+                        if self._coverage_sync > 0:
+                            self._write_coverage_report()
                     elif kind == "pytest_crashlog_path":
                         self._crash_logs.append((index, msg[2], msg[3]))
                     elif kind == "keyboard_interrupt":
@@ -388,10 +406,63 @@ class PytestPluginMultiprocessServer:
             terminalreporter.write_line(
                 f"  #{i}: {hex_seed}   (reproduce: pytest --seed {hex_seed})"
             )
+        self._print_coverage(terminalreporter)
         if self._crash_logs:
             terminalreporter.write_line("Crash logs:")
             for index, nodeid, relpath in self._crash_logs:
                 terminalreporter.write_line(f"  #{index} {nodeid}: {relpath}")
+
+    def _merged_coverage(self) -> dict:
+        """The workers' slots merged afresh. Line counts sum: the workers ran
+        different transactions, so their executions are disjoint events."""
+        from wake_sol import coverage
+
+        merged: Dict[str, object] = {}
+        for index in sorted(self._worker_coverage):
+            coverage.merge_reports(merged, self._worker_coverage[index])
+        return merged
+
+    def _write_coverage_report(self) -> Optional[int]:
+        """Write the merged LCOV. Returns the file count, or None on failure."""
+        if self._coverage_report is None:
+            return None
+        from wake_sol import coverage
+
+        try:
+            merged = self._merged_coverage()
+            files = {
+                path: {int(n): c for n, c in lines.items()}
+                for path, lines in merged.get("files", {}).items()
+            }
+            self._coverage_report.write_text(coverage.format_lcov(files))
+            coverage._write_meta(self._coverage_report, merged)
+            return len(files)
+        except Exception:
+            return None
+
+    def _print_coverage(self, terminalreporter) -> None:
+        """The whole-run coverage table, and the single merged LCOV."""
+        if not self._worker_coverage:
+            return
+        from wake_sol import coverage
+
+        merged = self._merged_coverage()
+        # How many actually reported, not how many ran: `--cov N` collects from
+        # the first N workers only.
+        reported = len(self._worker_coverage)
+        terminalreporter.write_line(
+            f"Coverage (merged from {reported} of {self._proc_count} workers):"
+        )
+        for line in coverage.summary(data=merged).split("\n"):
+            terminalreporter.write_line(f"  {line}")
+
+        if self._coverage_report is None:
+            return
+        n = self._write_coverage_report()
+        if n is None:
+            terminalreporter.write_line(f"  ⚠ could not write {self._coverage_report}")
+            return
+        terminalreporter.write_line(f"  wrote {self._coverage_report} ({n} file(s))")
 
     def _print_fuzz_stats(self) -> None:
         """Render one aggregated flow-stats table per FuzzTest class, merged

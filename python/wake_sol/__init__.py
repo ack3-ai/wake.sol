@@ -48,6 +48,7 @@ from . import secp256k1 as secp256k1  # noqa: F401  (precompile module; register
 from . import secp256r1 as secp256r1  # noqa: F401  (precompile module; registers decoder)
 from ._precompiles import Inline, Offsets, PrecompileInstruction, Ref, SignedMessage
 from . import call_trace as _call_trace  # noqa: F401  (renderer used by CallTrace.__rich__)
+from . import coverage as coverage  # noqa: F401  (SBF source-line coverage; --coverage)
 from ._interface import DecodedInstruction, ReturnDataError, decode_instruction
 from .fuzzing import FuzzTest, flow, invariant
 from ._errors import (
@@ -114,6 +115,7 @@ __all__ = [
     "decode_instruction",
     "flow",
     "invariant",
+    "coverage",
     "may_fail",
     "must_fail",
     "register_errors",

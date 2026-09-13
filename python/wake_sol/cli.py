@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+from typing import Optional
 
 import click
 
@@ -33,6 +34,85 @@ def _strip_seed(args: list[str]) -> list[str]:
             continue
         out.append(a)
     return out
+
+
+#: Options the wake_sol pytest plugin registers. The server session runs with
+#: ``-p no:wake_sol``, so none of them exist there and pytest would reject the
+#: whole invocation; the workers, which do load the plugin, still get them.
+#:
+#: ``--coverage``/``--cov`` take an *optional* count, so stripping them also has
+#: to consume a following bare integer — and only an integer, or
+#: ``--cov tests/foo.py`` would silently lose the test path.
+_PLUGIN_OPTIONAL_VALUE = ("--coverage", "--cov")
+_PLUGIN_OPTIONS = ("--coverage-report", "--coverage-source", "--coverage-sync")
+
+
+def _is_int(text: str) -> bool:
+    try:
+        int(text)
+    except ValueError:
+        return False
+    return True
+
+
+def _strip_plugin_opts(args: list[str]) -> list[str]:
+    """Drop wake_sol plugin options from a server-side pytest invocation."""
+    out: list[str] = []
+    skip = False
+    for i, a in enumerate(args):
+        if skip:
+            skip = False
+            continue
+        if a in _PLUGIN_OPTIONAL_VALUE:
+            nxt = args[i + 1] if i + 1 < len(args) else None
+            skip = nxt is not None and _is_int(nxt)
+            continue
+        if a in _PLUGIN_OPTIONS:
+            skip = True
+            continue
+        if any(a.startswith(f"{opt}=") for opt in (*_PLUGIN_OPTIONS, *_PLUGIN_OPTIONAL_VALUE)):
+            continue
+        out.append(a)
+    return out
+
+
+def _coverage_count(args: list[str]) -> int:
+    """The `--cov` / `--coverage` value: 0 off, -1 all workers, else a count.
+
+    Parsed here as well as by the plugin because the server, which writes the
+    merged report, runs with the plugin disabled and never sees the option.
+    """
+    from wake_sol._pytest_plugin import _COVERAGE_ALL
+
+    count = 0
+    for i, a in enumerate(args):
+        if a in _PLUGIN_OPTIONAL_VALUE:
+            nxt = args[i + 1] if i + 1 < len(args) else None
+            count = int(nxt) if nxt is not None and _is_int(nxt) else _COVERAGE_ALL
+        elif any(a.startswith(f"{opt}=") for opt in _PLUGIN_OPTIONAL_VALUE):
+            value = a.split("=", 1)[1]
+            count = int(value) if _is_int(value) else _COVERAGE_ALL
+    return count
+
+
+def _option_value(args: list[str], name: str) -> Optional[str]:
+    """The value of `--name <value>` or `--name=<value>`, last one winning.
+
+    Read here because the server runs with the plugin disabled, so it never
+    parses these itself — but it is the process that merges the workers' counts
+    and therefore the one that writes the report.
+    """
+    value = None
+    expect = False
+    for a in args:
+        if expect:
+            value, expect = a, False
+            continue
+        if a == name:
+            expect = True
+        elif a.startswith(f"{name}="):
+            value = a[len(name) + 1:]
+    return value
 
 
 @cli.command(context_settings=dict(ignore_unknown_options=True))
@@ -119,6 +199,39 @@ def test(
     while len(worker_seeds) < proc_count:
         worker_seeds.append(os.urandom(8))
 
+    # Coverage options are parsed here as well as in the plugin: the server runs
+    # with the plugin disabled, but it is the process that merges the workers'
+    # counts and writes the report, so it needs to know all of this itself.
+    from wake_sol._pytest_plugin import (
+        _COVERAGE_ALL,
+        _DEFAULT_COVERAGE_REPORT,
+        _DEFAULT_COVERAGE_SYNC,
+    )
+
+    cov_count = _coverage_count(list(pytest_args))
+    if cov_count != 0:
+        wanted = proc_count if cov_count == _COVERAGE_ALL else cov_count
+        if wanted > proc_count:
+            raise click.BadParameter(
+                f"--cov {cov_count} asks for more workers than -P {proc_count}"
+            )
+
+    raw = _option_value(list(pytest_args), "--coverage-report")
+    if raw:
+        coverage_report = Path(raw).resolve()
+    elif cov_count != 0:
+        coverage_report = (Path.cwd() / _DEFAULT_COVERAGE_REPORT).resolve()
+    else:
+        coverage_report = None
+
+    raw_sync = _option_value(list(pytest_args), "--coverage-sync")
+    try:
+        coverage_sync = (
+            _DEFAULT_COVERAGE_SYNC if raw_sync is None else float(raw_sync)
+        )
+    except ValueError:
+        raise click.BadParameter("--coverage-sync must be a number of seconds")
+
     base_args = _strip_seed(list(pytest_args))
     # Workers: run their output uncaptured (-s) so the per-worker log file
     # captures everything; the server injects each worker's --seed. The debugger
@@ -129,7 +242,7 @@ def test(
     # not register --seed or print a "Base seed" summary. It also runs with -s:
     # pytest's stdin capture otherwise swaps in a non-tty object, so the attach
     # prompt (input() + sys.stdin.isatty()) would never fire on a real terminal.
-    server_args = base_args + ["-p", "no:wake_sol", "-s"]
+    server_args = _strip_plugin_opts(base_args) + ["-p", "no:wake_sol", "-s"]
 
     logs_dir = Path.cwd() / ".wake-sol" / "logs" / "testing"
 
@@ -140,6 +253,8 @@ def test(
                 PytestPluginMultiprocessServer(
                     proc_count, worker_seeds, dist, worker_args, logs_dir,
                     attach=attach, attach_first=attach_first,
+                    coverage_report=coverage_report,
+                    coverage_sync=coverage_sync,
                 )
             ],
         )
@@ -217,6 +332,39 @@ def gen_list(ctx: click.Context) -> None:
     for addr in sorted(discovered):
         _idl, path, src = discovered[addr]
         click.echo(f"{addr}\t{path}\t({src})")
+
+
+@cli.group()
+def coverage() -> None:
+    """Work with coverage reports."""
+
+
+@coverage.command("merge")
+@click.argument("inputs", nargs=-1, required=True,
+                type=click.Path(exists=True, dir_okay=False, path_type=Path))
+@click.option("-o", "--out", required=True,
+              type=click.Path(dir_okay=False, path_type=Path),
+              help="Where to write the merged LCOV.")
+@click.option("--force", is_flag=True,
+              help="Merge even if the inputs describe different builds.")
+def coverage_merge(inputs: tuple[Path, ...], out: Path, force: bool) -> None:
+    """Merge LCOV reports, summing per-line counts.
+
+    For CI shards and repeated runs — `wake-sol test -P N` already merges its own
+    workers and writes one report.
+
+    Refuses when two inputs cover different builds of the same program: their
+    line numbers describe different code, and a merged report would look healthy
+    while being meaningless. The check reads the `.meta.json` sidecars written
+    next to each report.
+    """
+    from wake_sol import coverage as cov
+
+    try:
+        n = cov.merge_lcov(list(inputs), out, force=force)
+    except ValueError as exc:
+        raise click.ClickException(str(exc))
+    click.echo(f"merged {len(inputs)} report(s) into {out} ({n} file(s))")
 
 
 def main() -> None:
