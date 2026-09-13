@@ -66,6 +66,13 @@ command). With a Solana toolchain installed:
 cd programs/native-counter && cargo build-sbf   # likewise native-adder, native-emitter
 ```
 
+The coverage tests additionally need that build to carry debug information and
+keep its source paths, so build `native-counter` with:
+
+```bash
+cd programs/native-counter && cargo build-sbf --disable-remap-cwd
+```
+
 `maturin develop --release` builds an optimized extension instead — worth it for
 long fuzzing campaigns. To get a wheel rather than an editable install,
 `maturin build --release` writes one to `target/wheels/`, installable with
@@ -93,6 +100,9 @@ long fuzzing campaigns. To get a wheel rather than an editable install,
 - **Parallel runs.** `wake-sol test -P N` runs N worker processes, either N
   seeds of the same suite or a sharded suite, with per-worker logs and
   aggregated results.
+- **Source-line coverage.** `wake-sol test --cov` reports which lines of
+  the program under test your tests actually executed, resolved from the SVM's
+  own instruction trace through the program's DWARF, with LCOV output.
 - **Cheatcodes.** Write account state and balances directly, warp the clock,
   set sysvars and rent, create lookup tables, and sign for
   ed25519/secp256k1/secp256r1 precompiles.

@@ -30,6 +30,7 @@ assert res.success
 - **[12 · Address Lookup Tables & v0 transactions](12-lookup-tables.md)** — the `create_lookup_table` cheatcode, the official ALT-program builders, and v0 transactions via `lookup_tables=`.
 - **[13 · Mainnet forking](13-forking.md)** — `svm.fork(...)`, offline/cache replay, `exclude=` for auditing your own build, and pinning programs (`fork_programs` / `forked_accounts`).
 - **[14 · Parallel running](14-parallel-running.md)** — `wake-sol test -P N`: N workers of the same suite (N seeds) or sharded (`--dist uniform`), per-worker seeds & logs, and aggregated results.
+- **[15 · Coverage](15-coverage.md)** — `wake-sol test --coverage`: which lines of the program under test your tests execute, how to build for it, and LCOV output.
 
 ## Conventions used throughout
 
