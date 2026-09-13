@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 
 from wake_sol import *
@@ -775,3 +777,27 @@ def test_account_bytes_leaves_pda_seeds_unchanged():
         Pubkey.find_program_address([a], program_id)
         == Pubkey.find_program_address([a.pubkey.to_bytes()], program_id)
     )
+
+
+_COUNTER_SO = Path(__file__).parent.parent / "programs/native-counter/target/deploy/native_counter.so"
+
+
+@pytest.mark.skipif(not _COUNTER_SO.exists(), reason="native-counter .so not built")
+def test_add_program_from_file_accepts_str_and_pathlike():
+    """`path` is resolved with `os.fspath`, so a `Path` needs no `str()` at the
+    call site — nor the `add_program(..., p.read_bytes())` detour."""
+
+    class Wrapped:  # any os.PathLike, not just pathlib.Path
+        def __fspath__(self) -> str:
+            return str(_COUNTER_SO)
+
+    for path in (str(_COUNTER_SO), _COUNTER_SO, Wrapped()):
+        program = Account.new()
+        svm.add_program_from_file(program, path)
+        assert Account(program.pubkey, svm).executable, path
+
+
+@pytest.mark.skipif(not _COUNTER_SO.exists(), reason="native-counter .so not built")
+def test_add_program_from_file_missing_path_raises():
+    with pytest.raises(RuntimeError):
+        svm.add_program_from_file(Account.new(), _COUNTER_SO.with_name("nope.so"))

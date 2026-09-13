@@ -81,7 +81,7 @@ svm.minimum_balance_for_rent_exemption(space)       # rent-exempt min for `space
 svm.latest_blockhash()                              # current blockhash (bytes)
 svm.expire_blockhash()                              # force a new blockhash
 svm.warp_to_slot(slot)                              # jump the clock to `slot`
-svm.add_program_from_file(program_id, "path/to.so") # deploy a BPF program
+svm.add_program_from_file(program_id, path)         # deploy a BPF program (str or Path)
 svm.add_program(program_id, so_bytes)
 svm.send_transaction(tx_bytes); svm.simulate_transaction(tx_bytes)
 svm.reset()                                         # wipe all accounts back to genesis
