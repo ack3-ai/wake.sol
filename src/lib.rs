@@ -981,10 +981,14 @@ impl PyLiteSVM {
     /// **Cheatcode.** Deploy a BPF program from the `.so` file at `path` directly
     /// at `program_id`, bypassing the loader and upgrade-authority flow — not
     /// possible on a real chain without going through the BPF loader.
+    ///
+    /// `path` is resolved with `os.fspath`, so a `pathlib.Path` works as well as a
+    /// `str` — tests build the `.so` location with `Path`, and forcing them through
+    /// `str()` (or through `add_program(..., p.read_bytes())`) was pure ceremony.
     fn add_program_from_file(
         &mut self,
         program_id: &Bound<'_, PyAny>,
-        path: &str,
+        path: PathBuf,
     ) -> PyResult<()> {
         let program_id = PyPubkey::new(program_id)?;
         self.inner

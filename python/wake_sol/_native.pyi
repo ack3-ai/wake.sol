@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from collections.abc import Sequence
 from typing import Generic, TypeAlias, overload
 
@@ -28,6 +29,10 @@ AddressLike: TypeAlias = "str | bytes | int | Pubkey | Account"
 
 MetaLike: TypeAlias = "AccountMeta | AddressLike"
 """An `AccountMeta`, or an address-like value (coerced to a read-only meta)."""
+
+PathLike: TypeAlias = "str | os.PathLike[str]"
+"""A filesystem path: a `str`, a `pathlib.Path`, or anything else implementing
+`os.PathLike`. Resolved through `os.fspath` on the Rust side."""
 
 SeedLike: TypeAlias = "bytes | bytearray | memoryview | Sequence[int] | Pubkey | Account"
 """One PDA seed: a bytes-like taken verbatim, or a `Pubkey` / `Account`
@@ -697,9 +702,10 @@ class LiteSVM:
         """The `SlotHashes` sysvar as `[(slot, hash_bytes), …]` (read-only)."""
         ...
 
-    def add_program_from_file(self, program_id: AddressLike, path: str) -> None:
+    def add_program_from_file(self, program_id: AddressLike, path: PathLike) -> None:
         """**Cheatcode.** Deploy a BPF program from the `.so` file at `path` at
-        `program_id`, bypassing the loader / upgrade-authority flow."""
+        `program_id`, bypassing the loader / upgrade-authority flow. `path` may be
+        a `str` or any `os.PathLike` (e.g. `pathlib.Path`)."""
         ...
 
     def add_program(self, program_id: AddressLike, bytes: bytes) -> None:
