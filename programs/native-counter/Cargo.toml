@@ -12,3 +12,27 @@ crate-type = ["cdylib", "lib"]
 
 [dependencies]
 solana-program = "2.1"
+
+# Source-line coverage needs DWARF, which `cargo build-sbf` omits by default.
+# This adds it to the unstripped `target/sbpf-solana-solana/release/*.so` while
+# leaving `target/deploy/*.so` deployable and optimized — coverage resolves
+# against the former (see tests/test_coverage.py).
+#
+# Build it with `--disable-remap-cwd`, or the toolchain strips `DW_AT_comp_dir`
+# and every crate's sources collapse onto the same relative `src/lib.rs`:
+#
+#     cd programs/native-counter && cargo build-sbf --disable-remap-cwd
+#
+# `opt-level = 0` and `lto = "off"` are what make the attribution complete. At
+# the default optimization the compiler merges and reorders enough that five of
+# this file's fourteen statements get no line-table row at all — `let counter =
+# next_account_info(...)`, the `if counter.owner != program_id` test and three
+# others simply vanish from the report, which reads as "not covered" when it
+# actually means "no information". Unoptimized, all fourteen map.
+#
+# The trade is real: the program runs ~5x the compute units, so this build is
+# for coverage, not for judging CU budgets. See docs/15-coverage.md.
+[profile.release]
+debug = true
+lto = "off"
+opt-level = 0

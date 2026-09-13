@@ -46,7 +46,10 @@ class CounterFuzz(FuzzTest):
         # The SVM was wiped to genesis before this sequence, so rebuild the
         # world: redeploy the program, fund a payer, and create a fresh
         # program-owned account holding a zeroed u64.
-        svm.add_program(PROGRAM_ID, SO.read_bytes())
+        # From the path, not the bytes: that lets `--cov` find the unstripped
+        # sibling build and report which lines of the program these flows
+        # actually reach (see docs/15-coverage.md).
+        svm.add_program_from_file(PROGRAM_ID, SO)
         self.payer = Account.new()
         svm.airdrop(self.payer, 1_000_000_000)
         self.counter = Account.new()
