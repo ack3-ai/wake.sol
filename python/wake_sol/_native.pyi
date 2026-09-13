@@ -829,6 +829,11 @@ class Account:
         given SVM, or the process-global default if `svm` is omitted."""
         ...
 
+    def __bytes__(self) -> bytes:
+        """The 32 **address** bytes — `bytes(account) == bytes(account.pubkey)`.
+        Not the account's `data`; use `account.data` for the contents."""
+        ...
+
     @staticmethod
     def new(svm: LiteSVM | None = ...) -> Account:
         """Create an account backed by a freshly generated keypair — can sign.

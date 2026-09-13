@@ -754,3 +754,24 @@ def test_blockhash_check_setter():
 
     svm.blockhash_check = True
     assert svm.blockhash_check is True
+
+
+def test_account_bytes_is_the_address():
+    """`bytes(account)` is the 32 address bytes, matching `bytes(pubkey)` — not
+    the account's `data`, which is a separate read and raises when unfunded."""
+    a = Account.new()
+    assert bytes(a) == bytes(a.pubkey) == a.pubkey.to_bytes()
+    assert len(bytes(a)) == 32
+    assert bytes(Account(a.pubkey)) == bytes(a)   # bare-address view, same bytes
+    assert not a.exists                            # and no `data` needed to get here
+
+
+def test_account_bytes_leaves_pda_seeds_unchanged():
+    """Regression guard: `seed_bytes` matches `Account` explicitly *before* its
+    `__bytes__` fallback, so growing a `__bytes__` must not shift the derivation."""
+    a = Account.new()
+    program_id = Pubkey(1)
+    assert (
+        Pubkey.find_program_address([a], program_id)
+        == Pubkey.find_program_address([a.pubkey.to_bytes()], program_id)
+    )

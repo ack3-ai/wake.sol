@@ -638,6 +638,16 @@ impl PyAccount {
         u64::from_le_bytes(bytes[..8].try_into().unwrap())
     }
 
+    /// `bytes(account)` — the 32 **address** bytes, identical to
+    /// `bytes(account.pubkey)`. Deliberately not the account's `data`: an
+    /// `Account` is a handle to an address (that is what `__eq__` / `__hash__`
+    /// compare, and what an `Account` contributes as a PDA seed), and every
+    /// address has those 32 bytes whereas `data` raises for a slot that does not
+    /// exist yet. Read the contents with `account.data`.
+    fn __bytes__<'py>(&self, py: Python<'py>) -> Bound<'py, PyBytes> {
+        PyBytes::new(py, self.address.inner.as_array())
+    }
+
     /// The resolved display name: a well-known program/sysvar name, else an
     /// assigned label, else a truncated base58 of the address.
     fn __str__(&self, py: Python<'_>) -> PyResult<String> {
