@@ -13,7 +13,7 @@ name = "wake_sol"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-litesvm = { version = "0.12.0", features = ["persistence-internal", "precompiles"] }
+litesvm = { version = "0.12.0", features = ["persistence-internal", "precompiles", "register-tracing"] }
 # Mainnet-parity feature set + per-feature activate/deactivate. Pinned to the
 # version litesvm 0.12 resolves so the `FeatureSet` type unifies.
 # NOTE: `persistence-internal` is a litesvm *internal* feature (no stability
@@ -41,6 +41,12 @@ solana-epoch-rewards = "=3.0.1"
 solana-fee-structure = "=3.0.0"
 solana-last-restart-slot = "=3.0.0"
 solana-slot-hashes = "=3.0.1"
+# Coverage (src/coverage.rs) implements litesvm's `InvocationInspectCallback`,
+# whose signature names agave types litesvm does not re-export. Pinned to the
+# exact versions litesvm 0.12 resolves, so the `InvokeContext` we are handed is
+# the one it built — a mismatch here is a type error, not a silent wrong answer.
+solana-program-runtime = "=3.1.14"
+solana-transaction-context = "=3.1.14"
 # Address Lookup Table: official instruction builders + state serialization for
 # the god-mode `create_lookup_table` cheatcode. Pinned to litesvm 0.12's version.
 solana-address-lookup-table-interface = { version = "=3.1.0", features = ["bincode", "bytemuck"] }
@@ -58,6 +64,24 @@ base64 = "0.22"
 k256 = "0.13"
 p256 = "0.13"
 sha3 = "0.10"
+
+# Source-line coverage (src/coverage.rs): resolve executed SBF program counters
+# back to `file:line` through the program's own DWARF. `object` reads the ELF
+# (we need `.text`'s vaddr to turn a pc into a file address) and `gimli` walks
+# the line program.
+#
+# Not `addr2line`, though it is the obvious choice: it drops the line table's
+# `is_stmt` flag (its `LineRow` carries only address/file/line/column), and that
+# flag is what marks a statement boundary — without it a line's hit count
+# becomes a count of the instructions it compiled into. See src/coverage.rs.
+#
+# Default features are off: `object`'s `compression` would pull in flate2/ruzstd
+# for `.zdebug_*` sections the SBF toolchain does not emit.
+# Build identity for merging coverage across runs: SHA-256 of the deployed
+# `.text`. Already in the graph (litesvm's register-tracing pulls it in).
+sha2 = "0.10"
+gimli = { version = "0.34", default-features = false, features = ["read", "std", "endian-reader"] }
+object = { version = "0.40", default-features = false, features = ["read_core", "elf", "std"] }
 
 [dependencies.pyo3]
 version = "0.28"

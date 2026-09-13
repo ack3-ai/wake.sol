@@ -1254,6 +1254,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "gimli"
+version = "0.34.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1033caf0b349c518623b5396bfb2cf0bddf44f0306d543a250e5743297aafd10"
+dependencies = [
+ "stable_deref_trait",
+]
+
+[[package]]
 name = "group"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1302,6 +1311,12 @@ name = "heck"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
+
+[[package]]
+name = "hex"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 
 [[package]]
 name = "hmac"
@@ -1649,10 +1664,12 @@ dependencies = [
  "agave-syscalls",
  "ansi_term",
  "bincode",
+ "hex",
  "indexmap",
  "itertools 0.14.0",
  "log",
  "serde",
+ "sha2 0.10.9",
  "solana-account",
  "solana-address 2.6.0",
  "solana-address-lookup-table-interface",
@@ -1840,6 +1857,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "071dfc062690e90b734c0b2273ce72ad0ffa95f0c74596bc250dcfd960262841"
 dependencies = [
  "autocfg",
+]
+
+[[package]]
+name = "object"
+version = "0.40.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dd229a0361b9d0d4396176e02d65897f487eebeab7caa6d443855ee152ca0b9c"
+dependencies = [
+ "memchr",
 ]
 
 [[package]]
@@ -4192,11 +4218,14 @@ dependencies = [
  "agave-feature-set",
  "base64 0.22.1",
  "bincode",
+ "gimli",
  "k256",
  "litesvm",
+ "object",
  "p256",
  "pyo3",
  "serde_json",
+ "sha2 0.10.9",
  "sha3",
  "solana-account",
  "solana-address 2.6.0",
@@ -4211,11 +4240,13 @@ dependencies = [
  "solana-keypair",
  "solana-last-restart-slot",
  "solana-message",
+ "solana-program-runtime",
  "solana-rent 3.1.0",
  "solana-signature",
  "solana-signer",
  "solana-slot-hashes",
  "solana-transaction",
+ "solana-transaction-context",
  "solana-transaction-error",
  "ureq",
 ]
