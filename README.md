@@ -115,8 +115,9 @@ The [harness guide](docs/index.md) is the reference — start with
 
 ## Built by ack3
 
-wake.sol is built and maintained by [ack3](https://ack3.ai), the security
-engineering team behind the Wake development and testing framework.
+wake.sol is an independent project by [ack3](https://ack3.ai). It follows the
+shape of Wake, the Solidity framework developed by Ackee Blockchain a.s. (ISC
+license), and shares no code with it.
 
 ## License
 
