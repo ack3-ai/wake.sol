@@ -17,9 +17,9 @@ simulate) transactions, and read a decoded call trace — with typed instruction
 builders generated from Anchor IDLs.
 
 It is the Solana counterpart to Wake, the Solidity development and testing
-framework, and follows the same shape: tests are plain `pytest`, the fuzzer is
-stateful and seed-reproducible, and failures come back as typed exceptions
-rather than strings.
+framework, and follows the same user experience: tests are plain `pytest`, the
+fuzzer is stateful and seed-reproducible, and failures come back as typed
+exceptions rather than strings.
 
 > **Status: soft release.** The API is usable and covered by tests, but it is
 > not yet stable — expect breaking changes.
@@ -115,8 +115,7 @@ The [harness guide](docs/index.md) is the reference — start with
 
 ## Built by ack3
 
-wake.sol is built and maintained by [ack3](https://ack3.ai), the security
-engineering team behind the Wake development and testing framework.
+wake.sol is built and maintained by [ack3](https://ack3.ai).
 
 ## License
 
